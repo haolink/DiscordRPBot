@@ -1,6 +1,6 @@
 <?php
 
-$token = include('token.php');
+$token = include(__DIR__ . 'token.php');
 
 $config = array(
     'imagemagick' => 'c:\\windows\\convert.exe',
