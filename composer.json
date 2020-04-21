@@ -1,0 +1,11 @@
+{
+    "require": {
+        "laravel-discord/yasmin": "^0.8.2",
+        "react/mysql": "^0.5.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "RPCharacterBot\\": "src/RPCharacterBot/"
+        }
+    }
+}
