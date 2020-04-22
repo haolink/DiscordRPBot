@@ -8,6 +8,7 @@ use CharlotteDunois\Yasmin\Models\Message;
 use React\MySQL\Factory as MysqlFactory;
 use React\MySQL\Io\LazyConnection;
 use RPCharacterBot\Common\Log\ConsoleOutput;
+use RPCharacterBot\Common\MessageInfo;
 use RPCharacterBot\Exception\BotException;
 use RPCharacterBot\Interfaces\OutputLogInterface;
 use RPCharacterBot\Model\Guild;
@@ -131,22 +132,6 @@ class Bot
             $this->client->user->createdAt->format('d.m.Y H:i:s'));
     }
 
-    public $marked = false;
-    /**
-     * On message received.
-     *
-     * @return void
-     */
-    private function onClientMessage(Message $message)
-    {
-        $guildId = $message->guild->id;
-
-        $that = $this;
-        Guild::fetchSingleByQuery($guildId)->then(function(Guild $guild) use($that) {  
-            Bot::getInstance()->getOutput()->writeln($guild->getId());
-        });
-    }
-
     /**
      * Run the bot.
      *
@@ -164,13 +149,21 @@ class Bot
     }
 
     /**
-     * Get configuration array.
+     * Get configuration array or alternatively a single value from it.
      *
-     * @return array
+     * @return mixed
      */ 
-    public function getConfig() : array
+    public function getConfig($key = null, $defaultValue = null)
     {
-        return $this->config;
+        if(is_null($key)) {
+            return $this->config;
+        }        
+
+        if(array_key_exists($key, $this->config)) {
+            return $this->config[$key];
+        }
+
+        return $defaultValue;
     }
 
     /**
@@ -201,6 +194,89 @@ class Bot
     public function getOutput()
     {
         return $this->output;
+    }
+
+    /**
+     * Writes a message to the output log.
+     *
+     * @param string $message
+     * @return void
+     */
+    public function write(string $message)
+    {
+        $this->output->write($message);
+    }
+
+    /**
+     * Writes a message with newline to the output log.
+     *
+     * @param string $message
+     * @return void
+     */
+    public function writeln(string $message)
+    {
+        $this->output->writeln($message);
+    }
+
+    /**
+     * On message received.
+     *
+     * @param Message $message
+     * @return void
+     */
+    private function onClientMessage(Message $message)
+    {
+        $guildId = $message->guild->id;
+
+        $that = $this;
+        
+        MessageInfo::parseMessage($this, $message)->then(function(MessageInfo $messageInfo) use($that) {
+            $that->messageDataAvailable($messageInfo);
+        });
+    }
+
+    /**
+     * Message and user data are available.
+     *
+     * @param MessageInfo $info
+     * @return void
+     */
+    private function messageDataAvailable(MessageInfo $info)
+    {        
+        //Test code here
+        if($info->isRPChannel && !is_null($info->currentCharacter)) {
+            $message = $info->message;
+            $content = $message->content;
+            if(empty($message->content)) {
+                $content = '';
+            }
+
+            $files = array();
+
+            if(is_object($message->attachments) && $message->attachments->count() > 0) {
+                foreach($message->attachments as $attachment) {
+                    /** @var MessageAttachment $attachment */
+                    $files[] = array(
+                        'name' => $attachment->filename,
+                        'path' => $attachment->url
+                    );
+                }
+            }
+                
+            $options = array(
+                'username' => $info->currentCharacter->getCharacterName(),
+                'avatar' => $info->currentCharacter->getCharacterAvatar()
+            );
+            
+            if (count($files) > 0) {
+                $options['files'] = $files;
+            }
+                
+            $info->webhook->send($content, $options)->then(function() use ($message) { 
+                    $message->delete()->then(function() { });    
+            });
+        }   
+        //Test code end
     }
 }
 

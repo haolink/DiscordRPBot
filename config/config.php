@@ -1,6 +1,6 @@
 <?php
 
-$token = include(__DIR__ . 'token.php');
+$token = include(__DIR__ . '/token.php');
 
 $config = array(
     'imagemagick' => 'c:\\windows\\convert.exe',
@@ -9,8 +9,13 @@ $config = array(
     'caches' => array(
         'users' => 1000,
         'channels' => 200,
-        'guilds' => 50
-    )    
+        'guilds' => 50,
+        'characters' => 2500
+    ),
+
+    'oocPrefix' => '//',
+    'mainCommandPrefix' => 'rp!',
+    'quickCommandPrefix' => '..'
 );
 
 ?>

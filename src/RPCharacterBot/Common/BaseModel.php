@@ -73,14 +73,19 @@ abstract class BaseModel
      * Fetches a single object using a query.
      *
      * @param string|array $id
+     * @param bool $createNew
      * @return PromiseInterface
      */
-    public static function fetchSingleByQuery($query) : PromiseInterface
+    public static function fetchSingleByQuery(array $query, bool $createNew = true) : PromiseInterface
     {
         $deferred = new Deferred();
 
-        self::fetchByQuery($query, true)->then(function(array $results) use($deferred) {
-            $deferred->resolve($results[0]);
+        self::fetchByQuery($query, $createNew)->then(function(array $results) use($deferred) {
+            if(count($results) == 0) {
+                $deferred->resolve(null);
+            } else {
+                $deferred->resolve($results[0]);
+            }
         });
 
         return $deferred->promise();
@@ -90,10 +95,9 @@ abstract class BaseModel
      * Fetches objects using a query.
      *
      * @param string|array $id
-     * @param bool $createNew   Creates a single new one if no object was found.
      * @return PromiseInterface
      */
-    public static function fetchByQuery($query, $createNew = true) : PromiseInterface
+    public static function fetchByQuery(array $query, bool $createNew = true) : PromiseInterface
     {
         $deferred = new Deferred();
 
@@ -148,6 +152,7 @@ abstract class BaseModel
             }
 
             self::$cache[$class] = new ModelCache($cacheSize, $cachePriority);
+            //echo $class . ' - ' . $cacheSize . ' - ' .$cachePriority . PHP_EOL;
         }
 
         $modelCache = self::$cache[$class];
@@ -156,12 +161,10 @@ abstract class BaseModel
         if(is_null($objects)) {
             /** @var DBQuery $dbQuery */
             $dbQuery = $class::getFetchQuery($query);
-
             $db->query($dbQuery->getSql(), $dbQuery->getParameters())->then(
                 function(QueryResult $queryResult) use($class, $query, $modelCache, $deferred, $createNew) {
                     $rows = $queryResult->resultRows;
                     $results = array();
-
                     if(count($rows) > 0) {
                         foreach($rows as $row) {
                             /** @var BaseModel $object */
@@ -187,7 +190,7 @@ abstract class BaseModel
                 throw new BotException($error);
             });
         } else {
-            echo 'Cache match ';
+            //echo 'Cache match ';
             $deferred->resolve($objects);
         }        
     }
@@ -222,11 +225,29 @@ abstract class BaseModel
         $that = $this;
 
         $this->db->query($insertStmt->getSql(), $insertStmt->getParameters())->then(function(QueryResult $result) use ($deferred, $that) {
+            $that->setObjectIdAfterInsert($result->insertId);
             $that->dbState = self::DB_STATE_CURRENT;
             $deferred->resolve();
+        })->otherwise(function($error) {
+            $msg = $error;
+            if($error instanceof \Exception) {
+                $msg = $error->getMessage();
+            }
+            Bot::getInstance()->writeln('Error: ' . $msg);
         });
 
         return $deferred->promise();
+    }
+
+    /**
+     * Might be required to be overwritten by model.
+     *
+     * @param mixed $insertId
+     * @return void
+     */
+    protected function setObjectIdAfterInsert($insertId)
+    {
+        return;
     }
 
     /**
@@ -293,12 +314,13 @@ abstract class BaseModel
         /** @var UpdateModel[] $queuedUpdates */
         $queuedUpdates = array();
 
-        foreach(self::$cache as $class => $modelCache) {            
+        foreach(self::$cache as $class => $modelCache) { 
             $modelCache->collectRequiredUpdates($queuedUpdates);
         }
 
         foreach($queuedUpdates as $queuedUpdate) {
             $model = $queuedUpdate->getModel();
+
             $model->applyUpdate()->done();
         }
     }

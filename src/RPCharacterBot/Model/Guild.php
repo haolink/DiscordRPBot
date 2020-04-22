@@ -17,7 +17,7 @@ class Guild extends BaseModel
     const RPCHAR_SETTING_GUILD = 2;
 
     /**
-     * Guild ID.
+     * Guild ID (stored as string in PHP, as BIGINT in MariaDB).
      *
      * @var string
      */
@@ -29,6 +29,20 @@ class Guild extends BaseModel
      * @var int
      */
     protected $rpCharacterSetting = self::RPCHAR_SETTING_CHANNEL;
+
+    /**
+     * Message prefix.
+     *
+     * @var string|null
+     */
+    protected $mainPrefix;
+
+    /**
+     * Quick command prefix within RP rooms.
+     *
+     * @var string|null
+     */
+    protected $quickPrefix;
 
     /**
      * Returns the query to get one or multiple.
@@ -54,12 +68,14 @@ class Guild extends BaseModel
     {
         return new DBQuery(
             'INSERT INTO guilds
-                (id, rpcharsetting)
+                (id, rpcharsetting, main_prefix, quick_prefix)
             VALUES
-                (?, ?)',
+                (?, ?, ?, ?)',
             array(
                 $this->id,
-                $this->rpCharacterSetting
+                $this->rpCharacterSetting,
+                $this->mainPrefix,
+                $this->quickPrefix            
             ));
     }
 
@@ -86,23 +102,17 @@ class Guild extends BaseModel
     {
         return new DBQuery(
             'UPDATE guilds
-                SET rpcharsetting = ?
+                SET rpcharsetting = ?,
+                    main_prefix = ?,
+                    quick_prefix = ?
             WHERE
                 id = ?',
             array(
                 $this->rpCharacterSetting,
+                $this->mainPrefix,
+                $this->quickPrefix,
                 $this->id
             ));
-    }
-    
-    /**
-     * Uncache object.
-     *
-     * @return void
-     */
-    public function uncache() 
-    {
-        self::uncacheBySubQuery(array('id' => $this->id));
     }
 
     /**
@@ -115,6 +125,8 @@ class Guild extends BaseModel
     {
         $this->id = $dbRow['id'];
         $this->rpCharacterSetting = $dbRow['rpcharsetting'];
+        $this->mainPrefix = $dbRow['main_prefix'];
+        $this->quickPrefix = $dbRow['quick_prefix'];
     }
 
     /**
@@ -159,6 +171,56 @@ class Guild extends BaseModel
     public function setRpCharacterSetting(int $rpCharacterSetting)
     {
         $this->rpCharacterSetting = $rpCharacterSetting;
+        $this->setUpdateState(self::DB_STATE_UPDATED);
+
+        return $this;
+    }
+
+    /**
+     * Get message prefix.
+     *
+     * @return  string|null
+     */ 
+    public function getMainPrefix() : ?string
+    {
+        return $this->mainPrefix;
+    }
+
+    /**
+     * Set message prefix.
+     *
+     * @param  string|null  $mainPrefix  Message prefix.
+     *
+     * @return  self
+     */ 
+    public function setMainPrefix(?string $mainPrefix)
+    {
+        $this->mainPrefix = $mainPrefix;
+        $this->setUpdateState(self::DB_STATE_UPDATED);
+
+        return $this;
+    }
+
+    /**
+     * Get quick command prefix within RP rooms.
+     *
+     * @return  string|null
+     */ 
+    public function getQuickPrefix() : ?string
+    {
+        return $this->quickPrefix;
+    }
+
+    /**
+     * Set quick command prefix within RP rooms.
+     *
+     * @param  string|null  $quickPrefix  Quick command prefix within RP rooms.
+     *
+     * @return  self
+     */ 
+    public function setQuickPrefix(?string $quickPrefix)
+    {
+        $this->quickPrefix = $quickPrefix;
         $this->setUpdateState(self::DB_STATE_UPDATED);
 
         return $this;
