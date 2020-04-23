@@ -29,13 +29,6 @@ class ModelCache
     private $cachedObjectGroups;
 
     /**
-     * Objects which are to be deleted from the cache.
-     *
-     * @var BaseModel[]
-     */
-    private $uncachedObjects;
-
-    /**
      * Creates a new object cache.
      *
      * @param int $cacheSize
@@ -45,7 +38,6 @@ class ModelCache
         $this->cacheSize = $cacheSize;
         $this->cachePriority = $cachePriority;
         $this->cachedObjectGroups = array();
-        $this->uncachedObjects = array();
     }
 
     /**
@@ -130,7 +122,7 @@ class ModelCache
 
             $droppedObjects = $droppedObjectGroup->getCachedObjects();
             foreach($droppedObjects as $droppedObject) {
-                $this->uncachedObjects[] = $droppedObject;
+                $droppedObject->forceSaveToDb();
             }
         }
         return $ret;

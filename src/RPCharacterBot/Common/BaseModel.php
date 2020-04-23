@@ -196,6 +196,16 @@ abstract class BaseModel
     }
 
     /**
+     * Forces an object into the database before it's getting uncached.
+     *
+     * @return void
+     */
+    public function forceSaveToDb()
+    {
+        $this->applyUpdate()->done();
+    }
+
+    /**
      * Applies an update to a model.
      *
      * @return void
