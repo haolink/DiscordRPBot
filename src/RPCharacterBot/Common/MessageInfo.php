@@ -366,6 +366,11 @@ class MessageInfo
         }
         $this->_currentCharacter = $default;
 
+        if($this->_isDM) {
+            $this->resolveDeferred($deferred);
+            return;
+        }
+
         switch ($this->_guild->getRpCharacterSetting()) {
             case Guild::RPCHAR_SETTING_GUILD:
                 $this->fetchDefaultCharacterForGuild($deferred);

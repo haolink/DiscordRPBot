@@ -4,9 +4,13 @@ namespace RPCharacterBot\Bot;
 
 use React\EventLoop\LoopInterface;
 use CharlotteDunois\Yasmin\Client as DiscordClient;
+use CharlotteDunois\Yasmin\Models\GuildMember;
 use CharlotteDunois\Yasmin\Models\Message;
+use CharlotteDunois\Yasmin\Models\Permissions;
+use CharlotteDunois\Yasmin\Models\TextChannel;
 use React\MySQL\Factory as MysqlFactory;
 use React\MySQL\Io\LazyConnection;
+use RPCharacterBot\Commands\DMCommand;
 use RPCharacterBot\Common\Log\ConsoleOutput;
 use RPCharacterBot\Common\MessageInfo;
 use RPCharacterBot\Exception\BotException;
@@ -107,7 +111,16 @@ class Bot
         $this->client->on('message', \Closure::fromCallable(array($this, 'onClientMessage')));
 
         $dbFactory = new MysqlFactory($loop);
-        $this->dbConnection = $dbFactory->createLazyConnection($config['db_connection']);
+        $this->dbConnection = $dbFactory->createLazyConnection($config['db_connection']);        
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @return void
+     */
+    private function onSigint() {
+        $this->output->writeln('Ctrl-C received!');
     }
 
     /**
@@ -127,7 +140,7 @@ class Bot
      * @return void
      */
     private function onClientReady()
-    {
+    {        
         $this->output->writeln('Logged in as ' . $this->client->user->tag . ' created on ' . 
             $this->client->user->createdAt->format('d.m.Y H:i:s'));
     }
@@ -226,8 +239,6 @@ class Bot
      */
     private function onClientMessage(Message $message)
     {
-        $guildId = $message->guild->id;
-
         $that = $this;
         
         MessageInfo::parseMessage($this, $message)->then(function(MessageInfo $messageInfo) use($that) {
@@ -255,13 +266,26 @@ class Bot
      * @return void
      */
     private function messageDataAvailable(MessageInfo $info)
-    {        
-        $this->output->writeln($this->debugClass($info->channel));
-        $this->output->writeln($this->debugClass($info->characterDefaultSettings));
-        $this->output->writeln($this->debugClass($info->currentCharacter));
+    {       
+        if ($info->isDM) {
+            $this->handleDM($info);
+        } else {
+            /** @var TextChannel $textChannel */
+            $textChannel = $info->message->channel;
+            $info->message->guild->fetchMember($this->client->user->id)->then(function(GuildMember $member) use($textChannel, $info) {
+                $permissions = $textChannel->permissionsFor($member);
+                $permissionList = array();
+                foreach(Permissions::PERMISSIONS as $permString => $permNumber) {
+                    if ($permissions->has($permNumber)) {
+                        $permissionList[] = $permString;
+                    }
+                }
+                print_r($permissionList);
+            });
+        }
 
         //Test code here
-        if($info->isRPChannel && !is_null($info->currentCharacter)) {
+        /*if($info->isRPChannel && !is_null($info->currentCharacter)) {
             $message = $info->message;
             $content = $message->content;
             if(empty($message->content)) {
@@ -272,7 +296,6 @@ class Bot
 
             if(is_object($message->attachments) && $message->attachments->count() > 0) {
                 foreach($message->attachments as $attachment) {
-                    /** @var MessageAttachment $attachment */
                     $files[] = array(
                         'name' => $attachment->filename,
                         'path' => $attachment->url
@@ -292,8 +315,40 @@ class Bot
             $info->webhook->send($content, $options)->then(function() use ($message) { 
                     $message->delete()->then(function() { });    
             });
-        }   
+        }  */
         //Test code end
+    }
+
+    /**
+     * Handles a DM message.
+     *
+     * @param MessageInfo $info
+     * @return void
+     */
+    private function handleDm(MessageInfo $info)
+    {
+        $messageText = $info->message->content ?? '';
+        $words = explode(' ', $messageText);
+        if (count($words) == 0) {
+            return;
+        }
+
+        $firstWord = $words[0];
+        $command = DMCommand::searchCommand($firstWord, $info);
+
+        if(!is_null($command)) {
+            $command->handleCommand()->done();
+        }
+    }
+
+    /**
+     * Get discord client.
+     *
+     * @return  DiscordClient
+     */ 
+    public function getClient() : DiscordClient
+    {
+        return $this->client;
     }
 }
 
