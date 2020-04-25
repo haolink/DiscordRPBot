@@ -3,7 +3,7 @@
 By default commands are prefixed with `rp!`. Within an RP channel commands use the shorter prefix `..`. Both prefixes can be changed by a server admin in case they conflict with an existing command.
 
 
-##Server admin commands
+## Server admin commands
 
 The following commands can only be run by server administrators or server owners.
 

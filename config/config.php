@@ -9,8 +9,10 @@ $config = array(
     'caches' => array(
         'users' => 1000,
         'channels' => 200,
-        'guilds' => 50,
-        'characters' => 2500
+        'guilds' => 100,
+        'characters' => 2500,
+        'guild_users' => 100,
+        'channel_users' => 200
     ),
 
     'oocPrefix' => '//',

@@ -236,6 +236,19 @@ class Bot
     }
 
     /**
+     * Debugging class output.
+     * 
+     * @return string
+     */
+    private function debugClass($object) : string
+    {
+        if(is_null($object)) {
+            return 'null';
+        }
+        return get_class($object);
+    }
+
+    /**
      * Message and user data are available.
      *
      * @param MessageInfo $info
@@ -243,6 +256,10 @@ class Bot
      */
     private function messageDataAvailable(MessageInfo $info)
     {        
+        $this->output->writeln($this->debugClass($info->channel));
+        $this->output->writeln($this->debugClass($info->characterDefaultSettings));
+        $this->output->writeln($this->debugClass($info->currentCharacter));
+
         //Test code here
         if($info->isRPChannel && !is_null($info->currentCharacter)) {
             $message = $info->message;

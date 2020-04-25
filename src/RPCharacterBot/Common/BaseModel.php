@@ -328,6 +328,16 @@ abstract class BaseModel
             $modelCache->collectRequiredUpdates($queuedUpdates);
         }
 
+        usort($queuedUpdates, function(UpdateModel $a, UpdateModel $b) {
+            $prioA = $a->getPriority();
+            $prioB = $b->getPriority();
+
+            if($prioA != $prioB) {
+                return $prioA - $prioB;
+            }
+            return ($a->getModel()->getDbState() - $b->getModel()->getDbState());
+        });
+
         foreach($queuedUpdates as $queuedUpdate) {
             $model = $queuedUpdate->getModel();
 

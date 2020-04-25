@@ -144,16 +144,6 @@ class ModelCache
                 }
             }
         }
-
-        foreach($this->uncachedObjects as $object) {
-            if($object->getDbState() != BaseModel::DB_STATE_CURRENT) {
-                $queuedUpdates[] = new UpdateModel(
-                    $object, $this->cachePriority
-                );
-            }
-        }
-
-        $this->uncachedObjects = array();
     }
 
     /**
