@@ -68,6 +68,28 @@ class Character extends BaseModel
     }
 
     /**
+     * Creates a new character for a user.
+     *
+     * @param string $userId
+     * @param string $shortName
+     * @param string $fullName
+     * @return Character
+     */
+    public static function createNewCharacter(string $userId, string $shortName, string $fullName) : Character
+    {
+        $character = new Character();
+        $character->userId = $userId;
+        $character->characterShortname = $shortName;
+        $character->characterName = $fullName;
+        $character->dbState = self::DB_STATE_NEW;
+        $character->defaultCharacter = false;
+        
+        self::addToCache(get_class($character), array('user_id' => $userId), $character);
+
+        return $character;
+    }
+
+    /**
      * Gets the query to insert this character into the database.
      *
      * @return DBQuery
@@ -132,8 +154,10 @@ class Character extends BaseModel
                 $this->characterShortname,
                 $this->characterName,
                 $this->characterAvatar,
-                ($this->defaultCharacter ? 1:0)
-            ));
+                ($this->defaultCharacter ? 1:0),
+                $this->id
+            ),                
+        );
     }
 
     /**
@@ -202,6 +226,7 @@ class Character extends BaseModel
      */ 
     public function setCharacterShortname(?string $characterShortname)
     {
+        $this->setUpdateState(self::DB_STATE_UPDATED);
         $this->characterShortname = $characterShortname;
 
         return $this;
@@ -226,6 +251,7 @@ class Character extends BaseModel
      */ 
     public function setCharacterName(?string $characterName)
     {
+        $this->setUpdateState(self::DB_STATE_UPDATED);
         $this->characterName = $characterName;
 
         return $this;
@@ -250,6 +276,7 @@ class Character extends BaseModel
      */ 
     public function setCharacterAvatar(?string $characterAvatar)
     {
+        $this->setUpdateState(self::DB_STATE_UPDATED);
         $this->characterAvatar = $characterAvatar;
 
         return $this;
@@ -274,6 +301,7 @@ class Character extends BaseModel
      */ 
     public function setDefaultCharacter(bool $defaultCharacter)
     {
+        $this->setUpdateState(self::DB_STATE_UPDATED);
         $this->defaultCharacter = $defaultCharacter;
 
         return $this;

@@ -364,7 +364,7 @@ class MessageInfo
                 $default = $firstCharacter;
             }
         }
-        $this->_currentCharacter = $default;
+        $this->_currentCharacter = $default;        
 
         if($this->_isDM) {
             $this->resolveDeferred($deferred);

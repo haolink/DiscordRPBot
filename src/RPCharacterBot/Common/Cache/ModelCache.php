@@ -71,21 +71,10 @@ class ModelCache
     {
         $queryString = $this->queryArrayToString($query);
 
-        $i = 0;
-        $foundObjectGroup = null;
+        $foundObjectGroup = $this->getCacheGroupForQuery($queryString);
         $foundObjects = null;
-        foreach ($this->cachedObjectGroups as $cachedObjectGroup) {
-            if($cachedObjectGroup->getQueryString() == $queryString) {
-                $foundObjectGroup = $cachedObjectGroup;
-                break;
-            }
-            $i++;
-        }
-        
-        if(!is_null($foundObjectGroup)) {
-            unset($this->cachedObjectGroups[$i]);
-            array_unshift($this->cachedObjectGroups, $cachedObjectGroup);
 
+        if(!is_null($foundObjectGroup)) {
             $foundObjectArray = array();
             foreach($foundObjectGroup->getCachedObjects() as $object) {
                 if($object->getDbState() != BaseModel::DB_STATE_DELETED) {
@@ -100,6 +89,34 @@ class ModelCache
         return $foundObjects;
     }
 
+    /**
+     * Gets the cache group for an existing query.
+     *
+     * @param string $queryString
+     * @param array $models
+     * @return CacheGroup|null
+     */
+    private function getCacheGroupForQuery(string $queryString) : ?CacheGroup
+    {
+        $i = 0;
+        $foundObjectGroup = null;
+
+        foreach ($this->cachedObjectGroups as $cachedObjectGroup) {
+            if($cachedObjectGroup->getQueryString() == $queryString) {
+                $foundObjectGroup = $cachedObjectGroup;
+                break;
+            }
+            $i++;
+        }
+        
+        if(!is_null($foundObjectGroup)) {
+            unset($this->cachedObjectGroups[$i]);
+            array_unshift($this->cachedObjectGroups, $cachedObjectGroup);            
+        }
+
+        return $foundObjectGroup;
+    }
+
 
     /**
      * Adds models to the cache by their query.
@@ -110,22 +127,31 @@ class ModelCache
     public function addModelsToCache(array $query, array $models)
     {
         $queryString = $this->queryArrayToString($query);
-        $ret = null;
 
-        $cacheGroup = new CacheGroup($queryString, $models);
-
-        $this->cachedObjectGroups[] = $cacheGroup;
-
-        if(count($this->cachedObjectGroups) > $this->cacheSize) {
-            $droppedObjectGroup = $this->cachedObjectGroups[$this->cacheSize];
-            unset($this->cachedObjectGroups[$this->cacheSize]);
-
-            $droppedObjects = $droppedObjectGroup->getCachedObjects();
-            foreach($droppedObjects as $droppedObject) {
-                $droppedObject->forceSaveToDb();
-            }
+        if (count($models) == 0) {
+            return;
         }
-        return $ret;
+
+        //Check if a cache for this query already exists
+        $foundObjectGroup = $this->getCacheGroupForQuery($queryString);
+        if (!is_null($foundObjectGroup)) {
+            $foundObjectGroup->addObjects($models);
+        } else {
+            $cacheGroup = new CacheGroup($queryString, $models);
+
+            $this->cachedObjectGroups[] = $cacheGroup;
+
+            if(count($this->cachedObjectGroups) > $this->cacheSize) {
+                $droppedObjectGroup = $this->cachedObjectGroups[$this->cacheSize];
+                unset($this->cachedObjectGroups[$this->cacheSize]);
+    
+                $droppedObjects = $droppedObjectGroup->getCachedObjects();
+                foreach($droppedObjects as $droppedObject) {
+                    $droppedObject->forceSaveToDb();
+                }
+            }
+    
+        }
     }
 
     /**

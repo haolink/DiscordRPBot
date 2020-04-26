@@ -11,6 +11,9 @@ use CharlotteDunois\Yasmin\Models\TextChannel;
 use React\MySQL\Factory as MysqlFactory;
 use React\MySQL\Io\LazyConnection;
 use RPCharacterBot\Commands\DMCommand;
+use RPCharacterBot\Commands\RPCCommand;
+use RPCharacterBot\Commands\RPChannel\DefaultHandler;
+use RPCharacterBot\Commands\RPChannel\OOCHandler;
 use RPCharacterBot\Common\Log\ConsoleOutput;
 use RPCharacterBot\Common\MessageInfo;
 use RPCharacterBot\Exception\BotException;
@@ -240,6 +243,10 @@ class Bot
     private function onClientMessage(Message $message)
     {
         $that = $this;
+
+        if ($message->author->bot) {
+            return;
+        }
         
         MessageInfo::parseMessage($this, $message)->then(function(MessageInfo $messageInfo) use($that) {
             $that->messageDataAvailable($messageInfo);
@@ -268,10 +275,18 @@ class Bot
     private function messageDataAvailable(MessageInfo $info)
     {       
         if ($info->isDM) {
-            $this->handleDM($info);
+            $this->handleDmCommands($info);
+        } elseif ($info->isRPChannel) {
+            if ($this->handleRPChannelCommands($info)) {
+                return;
+            }
+            if ($this->handleRPChannelOoc($info)) {
+                return;
+            }
+            $this->handleRPChannelMessage($info);            
         } else {
             /** @var TextChannel $textChannel */
-            $textChannel = $info->message->channel;
+            /*$textChannel = $info->message->channel;
             $info->message->guild->fetchMember($this->client->user->id)->then(function(GuildMember $member) use($textChannel, $info) {
                 $permissions = $textChannel->permissionsFor($member);
                 $permissionList = array();
@@ -281,56 +296,22 @@ class Bot
                     }
                 }
                 print_r($permissionList);
-            });
-        }
-
-        //Test code here
-        /*if($info->isRPChannel && !is_null($info->currentCharacter)) {
-            $message = $info->message;
-            $content = $message->content;
-            if(empty($message->content)) {
-                $content = '';
-            }
-
-            $files = array();
-
-            if(is_object($message->attachments) && $message->attachments->count() > 0) {
-                foreach($message->attachments as $attachment) {
-                    $files[] = array(
-                        'name' => $attachment->filename,
-                        'path' => $attachment->url
-                    );
-                }
-            }
-                
-            $options = array(
-                'username' => $info->currentCharacter->getCharacterName(),
-                'avatar' => $info->currentCharacter->getCharacterAvatar()
-            );
-            
-            if (count($files) > 0) {
-                $options['files'] = $files;
-            }
-                
-            $info->webhook->send($content, $options)->then(function() use ($message) { 
-                    $message->delete()->then(function() { });    
-            });
-        }  */
-        //Test code end
+            });*/
+        }     
     }
 
     /**
      * Handles a DM message.
      *
      * @param MessageInfo $info
-     * @return void
+     * @return bool Was able to handle a command.
      */
-    private function handleDm(MessageInfo $info)
+    private function handleDmCommands(MessageInfo $info) : bool
     {
         $messageText = $info->message->content ?? '';
         $words = explode(' ', $messageText);
         if (count($words) == 0) {
-            return;
+            return false;
         }
 
         $firstWord = $words[0];
@@ -338,7 +319,104 @@ class Bot
 
         if(!is_null($command)) {
             $command->handleCommand()->done();
+
+            return true;
         }
+        return false;
+    }
+
+    /**
+     * Extracts a prefixed command.
+     *
+     * @param string $text
+     * @param string $prefix
+     * @return string|null
+     */
+    private function extractCommandName($text, $prefix) : ?string
+    {
+        $prefixLength = mb_strlen($prefix);
+        $wordLength = mb_strlen($text);
+
+        if ($prefixLength >= $wordLength) {
+            return null;
+        }
+
+        $firstLetters = mb_substr($text, 0, $prefixLength);
+
+        if ($firstLetters == $prefix) {
+            return mb_substr($text, $prefixLength);
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Handles messages within an RP channel.
+     *
+     * @param MessageInfo $info
+     * @return bool Was able to handle a command.
+     */
+    private function handleRPChannelCommands(MessageInfo $info)
+    {
+        $messageText = $info->message->content ?? '';
+        $words = explode(' ', $messageText);
+        if (count($words) == 0) {
+            return false;
+        }
+
+        $firstWord = $words[0];
+        $commandName = $this->extractCommandName($firstWord, $info->quickPrefix);
+
+        if (is_null($commandName)) {
+            return false;
+        }
+
+        $command = RPCCommand::searchCommand($commandName, $info);
+        if (!is_null($command)) {
+            $command->handleCommand()->done();
+            $info->message->delete()->done();
+
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Handles OOC messages.
+     *
+     * @param MessageInfo $info
+     * @return void
+     */
+    private function handleRPChannelOoc(MessageInfo $info)
+    {
+        if (!$info->channel->getAllowOoc()) {
+            return false;
+        }
+
+        $messageText = $info->message->content ?? '';
+        
+        $cmd = $this->extractCommandName($messageText, $info->oocSequence);
+
+        if (!is_null($cmd)) {
+            $oocHandler = new OOCHandler($info);
+            $oocHandler->handleCommand()->done();
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Handles a basic message in an RP command.
+     *
+     * @param MessageInfo $info
+     * @return bool
+     */
+    private function handleRPChannelMessage(MessageInfo $info) : bool
+    {
+        $defaultHandler = new DefaultHandler($info);
+        $defaultHandler->handleCommand();
+        return true;
     }
 
     /**

@@ -61,7 +61,7 @@ abstract class BaseModel
      * @param int $cacheSize
      * @param string $id
      */
-    private function __construct() 
+    protected function __construct() 
     {
         $this->bot = Bot::getInstance();
         $this->db = $this->bot->getDbConnection();
@@ -118,6 +118,48 @@ abstract class BaseModel
     }
 
     /**
+     * Ensures the availability of a class cache.
+     *
+     * @param string $class
+     * @return void
+     */    
+    private static function ensureCacheAvailability(string $class) 
+    {
+        $bot = Bot::getInstance();            
+        $config = $bot->getConfig();
+
+        if(!array_key_exists($class, self::$cache)) {
+            if(count(self::$cache) == 0) {
+                $loopTimer = 15;
+                if (array_key_exists('updateInterval', $config)) {
+                    $loopTimer = $config['updateInterval'];
+                    if(!is_numeric($loopTimer) || $loopTimer < 1) {
+                        $loopTimer = 15;
+                    }
+                }
+                $bot->getLoop()->addPeriodicTimer($loopTimer, function() {
+                    self::storeCachedObjects();
+                });
+            }
+
+            $cacheSize = 100;
+            $cachePriority = 1;
+            
+            if(property_exists($class, 'CACHE_CONFIG')) {
+                $cacheConfig = $class::$CACHE_CONFIG;                
+                if(array_key_exists('caches', $config) && array_key_exists($cacheConfig, $config['caches'])) {
+                    $cacheSize = $config['caches'][$cacheConfig];
+                }
+            }
+            if(property_exists($class, 'CACHE_PRIORITY')) {
+                $cachePriority = $class::$CACHE_PRIORITY;
+            }
+
+            self::$cache[$class] = new ModelCache($cacheSize, $cachePriority);
+        }
+    }
+
+    /**
      * Fetches an object by its ID internally.
      *
      * @param string $class
@@ -130,30 +172,7 @@ abstract class BaseModel
         $bot = Bot::getInstance();            
         $db = $bot->getDbConnection();
 
-        if(!array_key_exists($class, self::$cache)) {
-            if(count(self::$cache) == 0) {
-                $bot->getLoop()->addPeriodicTimer(15, function() {
-                    self::storeCachedObjects();
-                });
-            }
-
-            $cacheSize = 100;
-            $cachePriority = 1;
-            
-            if(property_exists($class, 'CACHE_CONFIG')) {
-                $cacheConfig = $class::$CACHE_CONFIG;
-                $config = $bot->getConfig();
-                if(array_key_exists('caches', $config) && array_key_exists($cacheConfig, $config['caches'])) {
-                    $cacheSize = $config['caches'][$cacheConfig];
-                }
-            }
-            if(property_exists($class, 'CACHE_PRIORITY')) {
-                $cachePriority = $class::$CACHE_PRIORITY;
-            }
-
-            self::$cache[$class] = new ModelCache($cacheSize, $cachePriority);
-            //echo $class . ' - ' . $cacheSize . ' - ' .$cachePriority . PHP_EOL;
-        }
+        self::ensureCacheAvailability($class);
 
         $modelCache = self::$cache[$class];
         $objects = $modelCache->getObjectsByQuery($query);
@@ -185,14 +204,33 @@ abstract class BaseModel
                     }
 
                     $deferred->resolve($results);
-                }
-            )->otherwise(function($error) {
+                }, 
+            function($error) {
                 throw new BotException($error);
             });
         } else {
-            //echo 'Cache match ';
             $deferred->resolve($objects);
         }        
+    }
+
+    /**
+     * Adds an item to the cache.
+     *
+     * @param string $class
+     * @param array $query
+     * @param BaseModel|BaseModel[] $object
+     * @return void
+     */
+    protected static function addToCache(string $class, array $query, $objects)
+    {
+        if (!is_array($objects)) {
+            $objects = array($objects);
+        }
+
+        self::ensureCacheAvailability($class);
+
+        $modelCache = self::$cache[$class];
+        $modelCache->addModelsToCache($query, $objects);
     }
 
     /**
@@ -238,7 +276,8 @@ abstract class BaseModel
             $that->setObjectIdAfterInsert($result->insertId);
             $that->dbState = self::DB_STATE_CURRENT;
             $deferred->resolve();
-        })->otherwise(function($error) {
+        },
+        function($error) {
             $msg = $error;
             if($error instanceof \Exception) {
                 $msg = $error->getMessage();
@@ -276,6 +315,13 @@ abstract class BaseModel
             $that->forceRemoveFromCache();
 
             $deferred->resolve();
+        },
+        function($error) {
+            $msg = $error;
+            if($error instanceof \Exception) {
+                $msg = $error->getMessage();
+            }
+            Bot::getInstance()->writeln('Error: ' . $msg);
         });
 
         return $deferred->promise();
@@ -296,6 +342,13 @@ abstract class BaseModel
         $this->db->query($updateStmt->getSql(), $updateStmt->getParameters())->then(function(QueryResult $result) use ($deferred, $that) {
             $that->dbState = self::DB_STATE_CURRENT;
             $deferred->resolve();
+        },
+        function($error) {
+            $msg = $error;
+            if($error instanceof \Exception) {
+                $msg = $error->getMessage();
+            }
+            Bot::getInstance()->writeln('Error: ' . $msg);
         });
 
         return $deferred->promise();

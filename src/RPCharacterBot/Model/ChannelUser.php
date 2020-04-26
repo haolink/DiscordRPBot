@@ -148,7 +148,7 @@ class ChannelUser extends CharacterDefaultModel
      */
     public function setDefaultCharacterId(?string $characterId): void
     {
-        $this->dbState = self::DB_STATE_UPDATED;
+        $this->setUpdateState(self::DB_STATE_UPDATED);
         $this->characterId = $characterId;
     }
 }

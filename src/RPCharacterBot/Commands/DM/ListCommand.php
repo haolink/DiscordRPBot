@@ -7,7 +7,12 @@ use RPCharacterBot\Commands\DMCommand;
 
 class ListCommand extends DMCommand
 {
-    public function handleCommandInternal() : ?ExtendedPromiseInterface
+    /**
+     * Lists the characters a user has.
+     *
+     * @return ExtendedPromiseInterface|null
+     */
+    protected function handleCommandInternal() : ?ExtendedPromiseInterface
     {
         $characters = $this->messageInfo->characters;
 

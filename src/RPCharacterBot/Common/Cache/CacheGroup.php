@@ -70,4 +70,23 @@ class CacheGroup
 
         return (count($this->cachedObjects) == 0);
     }
+
+    /**
+     * Adds models to the cache
+     *
+     * @param BaseModel[] $objects
+     * @return void
+     */
+    public function addObjects(array $objects)
+    {
+        foreach ($objects as $object) {
+            if (!($object instanceof BaseModel)) {
+                continue;
+            }
+            if (in_array($object, $this->cachedObjects)) {
+                continue;
+            }
+            $this->cachedObjects[] = $object;
+        }
+    }
 }

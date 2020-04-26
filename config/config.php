@@ -14,6 +14,7 @@ $config = array(
         'guild_users' => 100,
         'channel_users' => 200
     ),
+    'updateInterval' => 5,
 
     'oocPrefix' => '//',
     'mainCommandPrefix' => 'rp!',

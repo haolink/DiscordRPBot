@@ -7,7 +7,9 @@ use React\Promise\ExtendedPromiseInterface;
 use RPCharacterBot\Bot\Bot;
 use RPCharacterBot\Common\Helpers\ClassHelper;
 use CharlotteDunois\Yasmin\Client as DiscordClient;
+use CharlotteDunois\Yasmin\Models\DMChannel;
 use React\EventLoop\LoopInterface;
+use RPCharacterBot\Model\Character;
 
 abstract class CommandHandler
 {
@@ -51,7 +53,7 @@ abstract class CommandHandler
      * 
      * @param MessageInfo $info
      */
-    protected function __construct(MessageInfo $info = null)
+    protected function __construct(MessageInfo $info)
     {
         $this->messageInfo = $info;
         $this->bot = Bot::getInstance();
@@ -99,7 +101,7 @@ abstract class CommandHandler
      * @param MessageInfo $info
      * @return CommandHandler|null
      */
-    public static function searchCommand($command, ?MessageInfo $info = null) : ?CommandHandler
+    public static function searchCommand($command, MessageInfo $info) : ?CommandHandler
     {
         $class = get_called_class();
         $command = strtolower($command);
@@ -137,5 +139,77 @@ abstract class CommandHandler
         }
         
         return null;
+    }
+
+    /**
+     * Replies to a message depending on the message type.
+     *
+     * @param string $message
+     * @return ExtendedPromiseInterface
+     */
+    protected function reply(string $message) : ExtendedPromiseInterface
+    {        
+        return $this->messageInfo->message->channel->send($message);
+    }
+
+    /**
+     * Forces a DM reply.
+     *
+     * @param string $message
+     * @return ExtendedPromiseInterface
+     */
+    protected function replyDM(string $message) : ExtendedPromiseInterface
+    {
+        if ($this->messageInfo->isDM) {
+            return $this->reply($message);
+        } else {
+            $deferred = new Deferred();
+            
+            $that = $this;
+            $this->messageInfo->message->author->createDM()->then(
+                function(DMChannel $channel) use ($that, $deferred, $message) {
+                    $channel->send($message)->then(function() use ($deferred) {
+                        $deferred->resolve();
+                    });
+                });
+
+            return $deferred->promise();
+        }
+    }
+
+    /**
+     * Gets a character by their shortcut.
+     *
+     * @param string $shortcut
+     * @return Character|null
+     */
+    protected function getCharacterByShortcut(string $shortcut) : ?Character
+    {
+        $selectedCharacter = null;
+
+        foreach($this->messageInfo->characters as $character) {
+            if($character->getCharacterShortname() == $shortcut) {
+                $selectedCharacter = $character;
+                break;
+            }
+        }
+
+        return $selectedCharacter;        
+    }
+
+    /**
+     * Splits the message into words beginning the 2nd word (1st word is the command).
+     * 
+     * @return array
+     */
+    protected function getMessageWords() : array
+    {
+        $messageParts = explode(' ', $this->messageInfo->message->content);
+        if (count($messageParts) <= 1) {
+            return [];
+        }
+
+        unset($messageParts[0]);
+        return array_values($messageParts);
     }
 }
