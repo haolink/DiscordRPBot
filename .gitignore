@@ -1,4 +1,5 @@
 config/token.php
+config/config.php
 
 .vscode/*
 !.vscode/settings.json
