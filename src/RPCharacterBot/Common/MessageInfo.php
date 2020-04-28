@@ -241,7 +241,7 @@ class MessageInfo
         $that = $this;
         Channel::fetchSingleByQuery(array(
             'id' => $this->_message->channel->id,
-            'server_id' => $this->_guild->getId()
+            'guild_id' => $this->_guild->getId()
         ), false)->then(
             function (?Channel $channel) use ($that, $deferred) {
                 if (!is_null($channel)) { //Channel found
@@ -462,7 +462,6 @@ class MessageInfo
                 $this->_currentCharacter = $foundCharacter;
             }
         }
-        
         $this->resolveDeferred($deferred);
     }
 

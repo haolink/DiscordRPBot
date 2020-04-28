@@ -2,6 +2,7 @@
 
 namespace RPCharacterBot\Commands\DM;
 
+use React\Promise\Deferred;
 use RPCharacterBot\Commands\DMCommand;
 use React\Promise\ExtendedPromiseInterface;
 use RPCharacterBot\Model\Character;
@@ -42,8 +43,16 @@ class NewCommand extends DMCommand
             return $this->replyDM($errorMessage);
         }                
 
-        $newCharacter = Character::createNewCharacter($this->messageInfo->user->getId(), $shortCut, $fullName);
+        $deferred = new Deferred();
+        
+        Character::createNewCharacter($this->messageInfo->user->getId(), $shortCut, $fullName)->
+        then(function(Character $character) use ($deferred) {
+            $this->replyDM('You\'ve successfully created ' . $character->getCharacterName() . 
+               ' as a character. Their shortcut is: ' . $character->getCharacterShortname())->then(function() use ($deferred) {
+                $deferred->resolve();
+            });
+        });
 
-        return $this->replyDM('You\'ve successfully created ' . $fullName . ' as a character. Their shortcut is: ' . $shortCut);
+        return $deferred->promise();        
     }
 }

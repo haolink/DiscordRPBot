@@ -62,7 +62,7 @@ class Channel extends BaseModel
     protected function getInsertStatement() : DBQuery 
     {
         return new DBQuery(
-            'INSERT INTO guilds
+            'INSERT INTO channels
                 (id, webhook_id, allow_ooc)
             VALUES
                 (?, ?, ?)',
@@ -131,6 +131,28 @@ class Channel extends BaseModel
         $this->id = $query['id'];
         $this->webhookId = null; //Will cause a saving error!
         $this->allowOoc = true;
+    }
+
+    /**
+     * Registers a new guild for RPing.
+     *
+     * @param string $channelId
+     * @param string $webhookId
+     * @return void
+     */
+    public static function registerRpChannel(string $channelId, string $webhookId, string $guildId) : Channel
+    {
+        $channel = new Channel();
+        $channel->id = $channelId;
+        $channel->webhookId = $webhookId;
+        $channel->dbState = self::DB_STATE_NEW;
+        
+        self::addToCache(get_class($channel), array(
+            'id' => $channelId,
+            'guild_id' => $guildId
+        ), $channel);
+
+        return $channel;
     }
 
     /**

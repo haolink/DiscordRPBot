@@ -11,6 +11,7 @@ use CharlotteDunois\Yasmin\Models\TextChannel;
 use React\MySQL\Factory as MysqlFactory;
 use React\MySQL\Io\LazyConnection;
 use RPCharacterBot\Commands\DMCommand;
+use RPCharacterBot\Commands\GuildCommand;
 use RPCharacterBot\Commands\RPCCommand;
 use RPCharacterBot\Commands\RPChannel\DefaultHandler;
 use RPCharacterBot\Commands\RPChannel\OOCHandler;
@@ -134,7 +135,11 @@ class Bot
      */
     private function onClientError($error) 
     {
-        $this->output->writeln($error);
+        if($error instanceof \Exception) {
+            $this->output->writeln($error->getMessage());
+        } else {
+            $this->output->writeln(get_class($error));
+        }        
     }
 
     /**
@@ -277,7 +282,10 @@ class Bot
         if ($info->isDM) {
             $this->handleDmCommands($info);
         } elseif ($info->isRPChannel) {
-            if ($this->handleRPChannelCommands($info)) {
+            if ($this->handleGuildCommand($info)) {
+                return;
+            }            
+            if ($this->handleRPChannelCommand($info)) {
                 return;
             }
             if ($this->handleRPChannelOoc($info)) {
@@ -285,20 +293,11 @@ class Bot
             }
             $this->handleRPChannelMessage($info);            
         } else {
-            /** @var TextChannel $textChannel */
-            /*$textChannel = $info->message->channel;
-            $info->message->guild->fetchMember($this->client->user->id)->then(function(GuildMember $member) use($textChannel, $info) {
-                $permissions = $textChannel->permissionsFor($member);
-                $permissionList = array();
-                foreach(Permissions::PERMISSIONS as $permString => $permNumber) {
-                    if ($permissions->has($permNumber)) {
-                        $permissionList[] = $permString;
-                    }
-                }
-                print_r($permissionList);
-            });*/
+            if ($this->handleGuildCommand($info)) {
+                return;
+            }            
         }     
-    }
+    }    
 
     /**
      * Handles a DM message.
@@ -356,7 +355,7 @@ class Bot
      * @param MessageInfo $info
      * @return bool Was able to handle a command.
      */
-    private function handleRPChannelCommands(MessageInfo $info)
+    private function handleRPChannelCommand(MessageInfo $info)
     {
         $messageText = $info->message->content ?? '';
         $words = explode(' ', $messageText);
@@ -372,6 +371,37 @@ class Bot
         }
 
         $command = RPCCommand::searchCommand($commandName, $info);
+        if (!is_null($command)) {
+            $command->handleCommand()->done();
+            $info->message->delete()->done();
+
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Handles a command coming from a guild.
+     *
+     * @param MessageInfo $info
+     * @return boolean
+     */
+    private function handleGuildCommand(MessageInfo $info) : bool
+    {
+        $messageText = $info->message->content ?? '';
+        $words = explode(' ', $messageText);
+        if (count($words) == 0) {
+            return false;
+        }
+
+        $firstWord = $words[0];
+        $commandName = $this->extractCommandName($firstWord, $info->mainPrefix);
+
+        if (is_null($commandName)) {
+            return false;
+        }
+
+        $command = GuildCommand::searchCommand($commandName, $info);
         if (!is_null($command)) {
             $command->handleCommand()->done();
             $info->message->delete()->done();

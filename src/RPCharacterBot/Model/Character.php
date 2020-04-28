@@ -2,6 +2,8 @@
 
 namespace RPCharacterBot\Model;
 
+use React\Promise\Deferred;
+use React\Promise\ExtendedPromiseInterface;
 use RPCharacterBot\Common\BaseModel;
 use RPCharacterBot\Common\DBQuery;
 
@@ -73,9 +75,9 @@ class Character extends BaseModel
      * @param string $userId
      * @param string $shortName
      * @param string $fullName
-     * @return Character
+     * @return ExtendedPromiseInterface
      */
-    public static function createNewCharacter(string $userId, string $shortName, string $fullName) : Character
+    public static function createNewCharacter(string $userId, string $shortName, string $fullName) : ExtendedPromiseInterface
     {
         $character = new Character();
         $character->userId = $userId;
@@ -85,8 +87,17 @@ class Character extends BaseModel
         $character->defaultCharacter = false;
         
         self::addToCache(get_class($character), array('user_id' => $userId), $character);
+        
+        $deferred = new Deferred();
 
-        return $character;
+        /**
+         * To query a character ID, it must immediately be deployed to the database.
+         */
+        $character->applyUpdate()->then(function() use ($character, $deferred) {
+            return $deferred->resolve($character);
+        });
+
+        return $deferred->promise();
     }
 
     /**

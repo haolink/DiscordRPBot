@@ -241,7 +241,7 @@ abstract class BaseModel
     public function forceSaveToDb()
     {
         $this->applyUpdate()->done();
-    }
+    }    
 
     /**
      * Applies an update to a model.
