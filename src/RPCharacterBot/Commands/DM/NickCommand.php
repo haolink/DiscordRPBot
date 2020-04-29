@@ -9,7 +9,7 @@ use RPCharacterBot\Model\Character;
 class NickCommand extends DMCommand
 {    
     /**
-     * Command to create a new character.
+     * Command to change the name of a character.
      *
      * @return ExtendedPromiseInterface|null
      */

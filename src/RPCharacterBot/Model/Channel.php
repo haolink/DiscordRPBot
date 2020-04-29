@@ -95,14 +95,14 @@ class Channel extends BaseModel
     protected function getUpdateStatement(): DBQuery
     {
         return new DBQuery(
-            'UPDATE guilds
+            'UPDATE channels
                 SET webhook_id = ?,
                     allow_ooc = ?
             WHERE
                 id = ?',
             array(
-                ($this->allowOoc ? 1:0),                
                 $this->webhookId,
+                ($this->allowOoc ? 1:0),                
                 $this->id
             ));
     }

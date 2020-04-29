@@ -4,10 +4,9 @@ namespace RPCharacterBot\Bot;
 
 use React\EventLoop\LoopInterface;
 use CharlotteDunois\Yasmin\Client as DiscordClient;
-use CharlotteDunois\Yasmin\Models\GuildMember;
+use CharlotteDunois\Yasmin\Models\Guild as DiscordGuild;
 use CharlotteDunois\Yasmin\Models\Message;
-use CharlotteDunois\Yasmin\Models\Permissions;
-use CharlotteDunois\Yasmin\Models\TextChannel;
+use CharlotteDunois\Yasmin\Models\Role;
 use React\MySQL\Factory as MysqlFactory;
 use React\MySQL\Io\LazyConnection;
 use RPCharacterBot\Commands\DMCommand;
@@ -383,6 +382,56 @@ class Bot
     }
 
     /**
+     * Undocumented function
+     *
+     * @param string $word
+     * @param DiscordGuild $guild
+     * @return boolean
+     */
+    private function isAPingAtMe(string $word, DiscordGuild $guild) : bool {
+        if(mb_strlen($word) < 22) {
+            return false;
+        }
+
+        $firstTwo = mb_substr($word, 0, 2);
+        if ($firstTwo != '<@') {
+            return false;
+        }
+
+        $lastOne = mb_substr($word, -1, 1);
+        if ($lastOne != '>') {
+            return false;
+        }
+
+        $initialCharacter = 2;
+        $thirdLetter = mb_substr($word, 2, 1);
+        if (in_array($thirdLetter, array('&', '!'))) {
+            $initialCharacter = 3;
+        }
+
+        $pingedId = mb_substr($word, $initialCharacter, -1);
+
+        if (!preg_match('/^[0-9]+$/u', $pingedId)) {
+            return false;
+        }
+
+        $myIds = array($this->client->user->id);
+
+        foreach ($guild->me->roles->all() as $role) {
+            /** @var Role $role */
+            if ($role->mentionable || $role->managed) {
+                $myIds[] = $role->id;
+            }
+        }
+
+        if (in_array($pingedId, $myIds)) {            
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Handles a command coming from a guild.
      *
      * @param MessageInfo $info
@@ -391,22 +440,35 @@ class Bot
     private function handleGuildCommand(MessageInfo $info) : bool
     {
         $messageText = $info->message->content ?? '';
+
         $words = explode(' ', $messageText);
+
         if (count($words) == 0) {
             return false;
         }
 
         $firstWord = $words[0];
-        $commandName = $this->extractCommandName($firstWord, $info->mainPrefix);
+
+        //Exception for prefix command        
+        
+        $commandAttachment = '';
+        if($this->isAPingAtMe($firstWord, $info->message->guild)) {
+            if (count($words) == 1) {
+                return false;
+            }
+            $commandName = $words[1];
+            $commandAttachment = 'Ping';
+        } else {
+            $commandName = $this->extractCommandName($firstWord, $info->mainPrefix);
+        }        
 
         if (is_null($commandName)) {
             return false;
         }
 
-        $command = GuildCommand::searchCommand($commandName, $info);
+        $command = GuildCommand::searchCommand($commandName, $info, $commandAttachment);
         if (!is_null($command)) {
             $command->handleCommand()->done();
-            $info->message->delete()->done();
 
             return true;
         }

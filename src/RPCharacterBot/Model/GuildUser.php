@@ -39,7 +39,7 @@ class GuildUser extends CharacterDefaultModel
      */
     protected function createNewFromQuery(array $query)
     {
-        $this->guildId = $query['guild_dd'];
+        $this->guildId = $query['guild_id'];
         $this->userId = $query['user_id'];
     }
 

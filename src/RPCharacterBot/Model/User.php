@@ -130,7 +130,7 @@ class User extends BaseModel
      *
      * @return  self
      */ 
-    public function setAllowOoc(?string $oocPrefix)
+    public function setOocPrefix(?string $oocPrefix)
     {
         $this->oocPrefix = $oocPrefix;
         $this->setUpdateState(self::DB_STATE_UPDATED);

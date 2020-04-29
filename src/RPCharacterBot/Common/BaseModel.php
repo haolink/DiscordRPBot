@@ -417,7 +417,8 @@ abstract class BaseModel
      * Marks an object for deletion.
      */
     public function delete() {
-        $this->dbState = self::DB_STATE_DELETED;        
+        $this->dbState = self::DB_STATE_DELETED;
+        $this->applyUpdate()->done();
     }
 
     /**

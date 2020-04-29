@@ -41,7 +41,8 @@ class UnsetCommand extends GuildCommand
 
         $this->messageInfo->channel->delete();
         $this->messageInfo->webhook->delete()->then(function() use($that) {
-            $that->reply('Channel has been unregistered!');
+            $that->messageInfo->message->delete()->done();
+            $that->sendSelfDeletingReply('Channel has been unregistered!');
         });
 
         return $deferred->promise();

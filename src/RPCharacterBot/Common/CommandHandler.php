@@ -10,6 +10,7 @@ use RPCharacterBot\Common\Helpers\ClassHelper;
 use CharlotteDunois\Yasmin\Client as DiscordClient;
 use CharlotteDunois\Yasmin\Models\DMChannel;
 use CharlotteDunois\Yasmin\Models\GuildMember;
+use CharlotteDunois\Yasmin\Models\Message;
 use CharlotteDunois\Yasmin\Models\Permissions;
 use CharlotteDunois\Yasmin\Models\TextChannel;
 use React\EventLoop\LoopInterface;
@@ -238,10 +239,10 @@ abstract class CommandHandler
      * @param MessageInfo $info
      * @return CommandHandler|null
      */
-    public static function searchCommand($command, MessageInfo $info) : ?CommandHandler
+    public static function searchCommand($command, MessageInfo $info, string $commandAttachment = '') : ?CommandHandler
     {
         $class = get_called_class();
-        $command = strtolower($command);
+        $command = mb_strtolower($command) . $commandAttachment;
 
         if (!array_key_exists($class, self::$commandClasses)) {
             if(!property_exists($class, 'COMMAND_NAMESPACE')) {
@@ -262,7 +263,8 @@ abstract class CommandHandler
                 $classParts = explode('\\', $foundClass);
                 $className = $classParts[count($classParts) - 1];
                 if ((substr($className, -7)) == 'Command') {
-                    $commandName = strtolower(substr($className, 0, -7));
+                    $commandClassName = substr($className, 0, -7);
+                    $commandName = strtolower(substr($commandClassName, 0, 1)) . substr($commandClassName, 1);
                     $commands[$commandName] = $foundClass;
                 }
             }
@@ -346,7 +348,52 @@ abstract class CommandHandler
             return [];
         }
 
+        if (mb_substr($messageParts[0], 0, 2) == '<@') { //This is a ping            
+            if (count($messageParts) <= 2) {
+                return [];
+            }
+            unset($messageParts[1]);
+        }
         unset($messageParts[0]);
-        return array_values($messageParts);
+        return array_values($messageParts);    
+    }
+
+    /**
+     * Attempts to read a boolean value out of a string.
+     *
+     * @param string $input
+     * @return boolean|null
+     */
+    protected function readBooleanString(string $input) : ?bool
+    {
+        $input = mb_strtolower($input);
+        if(in_array($input, array('1', 'on', 'yes', 'true', 'enabled'))) {
+            return true;
+        }
+        if(in_array($input, array('0', '-1', 'off', 'no', 'false', 'disabled'))) {
+            return false;
+        }
+        return null;
+    }
+
+    /**
+     * Sends a message which will delete itself after some time.
+     *
+     * @param string $messageText
+     * @param int $timeout Time until a message is being deleted.
+     * @return ExtendedPromiseInterface
+     */
+    protected function sendSelfDeletingReply(string $messageText, int $timeout = 30) : ExtendedPromiseInterface
+    {
+        $deferred = new Deferred();
+
+        $this->reply($messageText)->then(function(Message $message) use ($deferred, $timeout) {
+            $this->loop->addTimer($timeout, function() use ($message) {
+                $message->delete()->done();
+            });
+            $deferred->resolve();
+        });
+
+        return $deferred->promise();
     }
 }
