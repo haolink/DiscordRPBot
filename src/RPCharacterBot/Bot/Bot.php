@@ -16,6 +16,7 @@ use RPCharacterBot\Commands\RPCCommand;
 use RPCharacterBot\Commands\RPChannel\DefaultHandler;
 use RPCharacterBot\Commands\RPChannel\OOCHandler;
 use RPCharacterBot\Common\Log\ConsoleOutput;
+use RPCharacterBot\Common\MessageCache;
 use RPCharacterBot\Common\MessageInfo;
 use RPCharacterBot\Exception\BotException;
 use RPCharacterBot\Interfaces\OutputLogInterface;
@@ -250,6 +251,7 @@ class Bot
         $that = $this;
 
         if ($message->author->bot) {
+            MessageCache::identifyBotMessage($message);
             return;
         }
         

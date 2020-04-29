@@ -6,6 +6,7 @@ use React\Promise\Deferred;
 use RPCharacterBot\Commands\RPCCommand;
 use RPCharacterBot\Common\MessageInfo;
 use React\Promise\ExtendedPromiseInterface;
+use RPCharacterBot\Common\MessageCache;
 
 class DefaultHandler extends RPCCommand
 {
@@ -28,15 +29,10 @@ class DefaultHandler extends RPCCommand
     {
         $info = $this->messageInfo;
         $message = $info->message;
-        $content = $message->content;
 
         if (is_null($info->webhook)) {
             return null;
         }        
-
-        if (empty($message->content)) {
-            $content = '';
-        }
 
         if (is_null($this->messageInfo->currentCharacter)) {
             $deferred = new Deferred();
@@ -51,34 +47,6 @@ class DefaultHandler extends RPCCommand
             return $deferred->promise();                        
         }
 
-        $files = array();
-
-        if (is_object($message->attachments) && $message->attachments->count() > 0) {
-            foreach ($message->attachments as $attachment) {
-                $files[] = array(
-                    'name' => $attachment->filename,
-                    'path' => $attachment->url
-                );
-            }
-        }
-
-        $options = array(
-            'username' => $info->currentCharacter->getCharacterName(),
-            'avatar' => $info->currentCharacter->getCharacterAvatar()
-        );
-
-        if (count($files) > 0) {
-            $options['files'] = $files;
-        }
-
-        $deferred = new Deferred();
-
-        $info->webhook->send($content, $options)->then(function () use ($message, $deferred) {
-            $message->delete()->then(function () use($deferred) {
-                $deferred->resolve();
-            });
-        });
-
-        return $deferred->promise();
+        return $this->resubmitMessageAsCharacter($message, $this->messageInfo->currentCharacter);
     }
 }

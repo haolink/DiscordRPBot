@@ -23,6 +23,7 @@ use RPCharacterBot\Model\GuildUser;
  * Descriptor for a final RP Bot message to be parsed.
  * 
  * @property Message $message Original Discord message object.
+ * @property Message|null $lastSubmittedMessage Last submitted message by this user.
  * @property Guild $guild Discord RP guild data for this message.
  * @property Channel|null $channel RP channel info.
  * @property Webhook $webhook Discord Webhook object.
@@ -45,6 +46,13 @@ class MessageInfo
      * @var Message
      */
     protected $_message;
+
+    /**
+     * Last submitted user message.
+     *
+     * @var Message
+     */    
+    protected $_lastSubmittedMessage;
 
     /**
      * RP Guild data.
@@ -321,9 +329,27 @@ class MessageInfo
                 $that->_user = $user;
 
                 $that->_oocSequence = $that->_user->getOocPrefix() ?? $that->_bot->getConfig('oocPrefix', '//');
-                $that->fetchCharacterData($deferred);
+                $that->fetchCachedMessage($deferred);
             }
         );
+    }
+
+    /**
+     * Checks if there is a cached message for this user.
+     *
+     * @param Deferred $deferred
+     * @return void
+     */
+    private function fetchCachedMessage(Deferred $deferred)
+    {
+        if (!is_null($this->_user) && !is_null($this->_channel)) {
+            $this->_lastSubmittedMessage = 
+                MessageCache::findLastUserMessage($this->_user->getId(), $this->_channel->getId());
+        } else {
+            $this->_lastSubmittedMessage = null;
+        }
+
+        $this->fetchCharacterData($deferred);
     }
 
     /**
