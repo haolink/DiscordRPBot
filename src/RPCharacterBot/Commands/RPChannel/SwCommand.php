@@ -21,9 +21,22 @@ class SwCommand extends RPCCommand
         if (is_null($existingCharacter)) {
             return $this->replyDM('A character with the shortcut ' . $shortCut . ' doesn\'t exist.');
         }
+
+        if ($existingCharacter == $this->messageInfo->currentCharacter) {
+            return null; //No change??
+        }
         
+        $this->messageInfo->characterDefaultSettings->setFormerCharacterId($this->messageInfo->currentCharacter->getId());
         $this->messageInfo->characterDefaultSettings->setDefaultCharacterId($existingCharacter->getId());
 
-        return null;
+        if(count($words) > 1) {
+            unset($words[0]);
+
+            $content = implode(' ', $words);
+            
+            return $this->resubmitMessageAsCharacter($this->messageInfo->message, $existingCharacter, $content);
+        } else {
+            return null;
+        }        
     }
 }

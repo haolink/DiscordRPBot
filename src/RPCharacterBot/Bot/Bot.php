@@ -491,7 +491,9 @@ class Bot
         
         $cmd = $this->extractCommandName($messageText, $info->oocSequence);
 
-        if (!is_null($cmd)) {
+        $matchBrackets = preg_match('/^(\[(.*)\]|\((.*)\)|\{(.*)\})$/us', $messageText);
+
+        if (!is_null($cmd) || $matchBrackets) {
             $oocHandler = new OOCHandler($info);
             $oocHandler->handleCommand()->done();
             return true;

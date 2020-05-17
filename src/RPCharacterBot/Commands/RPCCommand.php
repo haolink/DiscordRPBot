@@ -18,25 +18,30 @@ abstract class RPCCommand extends CommandHandler
      *
      * @param Message $message
      * @param Character $character
+     * @param string|null $content
      * @return ExtendedPromiseInterface|null
      */    
-    protected function resubmitMessageAsCharacter(Message $message, Character $character) : ?ExtendedPromiseInterface
+    protected function resubmitMessageAsCharacter($message, Character $character, ?string $content = null) : ?ExtendedPromiseInterface
     {
-        $content = $message->content;
+        if (!is_null($content)) {
+            $files = array();
+        } elseif ($message instanceof Message) {
+            $content = $message->content;
 
-        if (empty($message->content)) {
-            $content = '';
-        }
-
-        $files = array();
-
-        if (is_object($message->attachments) && $message->attachments->count() > 0) {
-            foreach ($message->attachments as $attachment) {
-                $files[] = array(
-                    'name' => $attachment->filename,
-                    'path' => $attachment->url
-                );
+            $files = array();
+    
+            if (is_object($message->attachments) && $message->attachments->count() > 0) {
+                foreach ($message->attachments as $attachment) {
+                    $files[] = array(
+                        'name' => $attachment->filename,
+                        'path' => $attachment->url
+                    );
+                }
             }
+        }        
+
+        if (empty($content)) {
+            $content = '';
         }
 
         $options = array(
@@ -46,6 +51,8 @@ abstract class RPCCommand extends CommandHandler
 
         if (count($files) > 0) {
             $options['files'] = $files;
+        } elseif (empty($content))         {
+            return null;
         }
 
         MessageCache::submitToWebHook($this->messageInfo->user->getId(), $this->messageInfo->channel->getId(),

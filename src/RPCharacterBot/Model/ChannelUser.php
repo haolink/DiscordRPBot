@@ -35,6 +35,14 @@ class ChannelUser extends CharacterDefaultModel
     private $characterId;
 
     /**
+     * Former character ID for this dataset.
+     * (BigInt in DB).
+     *
+     * @var string|null
+     */
+    private $formerCharacterId;
+
+    /**
      * @inheritDoc
      */
     protected function createNewFromQuery(array $query)
@@ -51,6 +59,7 @@ class ChannelUser extends CharacterDefaultModel
         $this->channelId = $dbRow['channel_id'];
         $this->userId = $dbRow['user_id'];
         $this->characterId = $dbRow['character_id'];
+        $this->formerCharacterId = $dbRow['former_character_id'];
     }
 
     /**
@@ -73,11 +82,11 @@ class ChannelUser extends CharacterDefaultModel
         return new DBQuery('
             INSERT INTO
                 channel_users
-                (channel_id, user_id, character_id)
+                (channel_id, user_id, character_id, former_character_id)
             VALUES
                 (?, ?, ?)
         ', array(
-            $this->channelId, $this->userId, $this->characterId
+            $this->channelId, $this->userId, $this->characterId, $this->formerCharacterId
         ));
     }
 
@@ -90,12 +99,13 @@ class ChannelUser extends CharacterDefaultModel
             UPDATE
                 channel_users
             SET
-                character_id = ?
+                character_id = ?,
+                former_character_id = ?
             WHERE
                 channel_id = ? AND
                 user_id = ?            
         ', array(
-            $this->characterId, $this->channelId, $this->userId
+            $this->characterId, $this->formerCharacterId, $this->channelId, $this->userId
         ));
     }
 
@@ -150,5 +160,22 @@ class ChannelUser extends CharacterDefaultModel
     {
         $this->setUpdateState(self::DB_STATE_UPDATED);
         $this->characterId = $characterId;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getFormerCharacterId() : ?string
+    {
+        return $this->formerCharacterId;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function setFormerCharacterId(?string $formerCharacterId)
+    {
+        $this->setUpdateState(self::DB_STATE_UPDATED);
+        $this->formerCharacterId = $formerCharacterId;
     }
 }

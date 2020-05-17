@@ -22,4 +22,19 @@ abstract class CharacterDefaultModel extends BaseModel
      * @return void
      */
     abstract function setDefaultCharacterId(?string $characterId) : void;
+
+    /** 
+     * Gets the former character ID. (Stored as BigInt in db).
+     * @return string|null
+     */ 
+    abstract public function getFormerCharacterId() : ?string;
+
+    /**
+     * Sets the former character ID for a player within a guild/channel.
+     * (Stored as BigInt in db).
+     *
+     * @param string|null  $formerCharacterId  (BigInt in DB).
+     * @return void
+     */ 
+    abstract public function setFormerCharacterId(?string $formerCharacterId);    
 }

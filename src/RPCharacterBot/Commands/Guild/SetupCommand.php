@@ -43,7 +43,8 @@ class SetupCommand extends GuildCommand
         $textChannel = $this->messageInfo->message->channel;
         $textChannel->createWebhook('RPBot')->then(function(Webhook $webhook) use ($that, $deferred, $textChannel) {
             $channel = Channel::registerRpChannel($textChannel->id, $webhook->id, $that->messageInfo->guild->getId());
-            $that->sendSelfDeletingReply('The channel has been registered for RPing!')->then(function() use($deferred) {
+            $that->sendSelfDeletingReply('The channel has been registered for RPing!')->then(function() use($deferred, $that) {
+                $that->messageInfo->message->delete()->done();
                 $deferred->resolve();
             });
         }, function($error) use($that, $deferred) {

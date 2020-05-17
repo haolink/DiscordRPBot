@@ -4,7 +4,6 @@ namespace RPCharacterBot\Commands\DM;
 
 use RPCharacterBot\Commands\DMCommand;
 use React\Promise\ExtendedPromiseInterface;
-use RPCharacterBot\Model\Character;
 
 class NickCommand extends DMCommand
 {    

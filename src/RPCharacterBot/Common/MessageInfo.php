@@ -30,6 +30,7 @@ use RPCharacterBot\Model\GuildUser;
  * @property User $user RP user object.
  * @property Character[] $characters RP characters of the user.
  * @property Character|null $currentCharacter RP character to use in this environment.
+ * @property Character|null $formerCharacter Former RP character to use in this environment.
  * @property CharacterDefaultModel|null $characterDefaultSettings Default settings for this channel/guild.
  * @property bool $isDM Are we currently having DM talk.
  * @property bool $isRPChannel Are we currently in a RP channel.
@@ -95,6 +96,13 @@ class MessageInfo
      * @var Character|null
      */
     protected $_currentCharacter;
+
+    /**
+     * Gets the former character for the back command.
+     *
+     * @var Character|null
+     */
+    protected $_formerCharacter;
 
     /**
      * Describer for the default character setting of this guild/channel.
@@ -461,10 +469,36 @@ class MessageInfo
      */
     private function fetchSelectedCharacter(Deferred $deferred)
     {
+        $formerSelectedGuildCharacterId = $this->_characterDefaultSettings->getFormerCharacterId();
         $selectedGuildCharacterId = $this->_characterDefaultSettings->getDefaultCharacterId();
+
+        $this->_formerCharacter = null;
+
+        if(!is_null($formerSelectedGuildCharacterId) && $formerSelectedGuildCharacterId == $selectedGuildCharacterId) {
+            $this->_characterDefaultSettings->setFormerCharacterId(null);
+        }
+
+        if (!is_null($formerSelectedGuildCharacterId)) {
+            /** @var Character|null $foundFormerCharacter */
+            $foundFormerCharacter = null;
+            foreach ($this->_characters as $character) {
+                /** @var Character $character */
+                if ($character->getId() == $formerSelectedGuildCharacterId) {
+                    $foundFormerCharacter = $character;
+                    break;
+                }
+            }
+
+            if (is_null($foundFormerCharacter)) {
+                $this->_characterDefaultSettings->setFormerCharacterId(null);
+            } else {
+                $this->_formerCharacter = $foundFormerCharacter;                
+            }
+        }        
 
         if (is_null($this->_currentCharacter)) {
             $this->_characterDefaultSettings->setDefaultCharacterId(null);
+            $this->_characterDefaultSettings->setFormerCharacterId(null);
             $this->resolveDeferred($deferred);
             return;
         }
@@ -482,6 +516,11 @@ class MessageInfo
 
             if (is_null($foundCharacter)) {
                 //Reset to default character
+                $defaultCharacterId = $this->_currentCharacter->getId();
+                if ($defaultCharacterId == $formerSelectedGuildCharacterId) {
+                    $this->_characterDefaultSettings->setFormerCharacterId(null);
+                    $this->_formerCharacter = null;
+                }
                 $this->_characterDefaultSettings->setDefaultCharacterId($this->_currentCharacter->getId());
             } else {
                 //Found the character for this guild/channel.
