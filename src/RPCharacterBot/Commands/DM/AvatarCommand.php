@@ -14,6 +14,11 @@ use RPCharacterBot\Commands\DMCommand;
 class AvatarCommand extends DMCommand
 {
     /**
+     * Avatar width and height.
+     */
+    const AVATAR_DIMENSION = 128;
+
+    /**
      * Checking the file system.
      *
      * @var FilesystemInterface
@@ -70,6 +75,34 @@ class AvatarCommand extends DMCommand
     private $imageMagick;
 
     /**
+     * Input width.
+     *
+     * @var int
+     */
+    private $inputWidth;
+
+    /**
+     * Input Height.
+     *
+     * @var int
+     */
+    private $inputHeight;
+
+    /**
+     * Input mime type.
+     *
+     * @var string
+     */
+    private $inputMime;
+
+    /**
+     * File output folder.
+     *
+     * @var string
+     */
+    private $outputFolder;
+
+    /**
      * Command to set a character's avatar.
      *
      * @return ExtendedPromiseInterface|null
@@ -98,6 +131,7 @@ class AvatarCommand extends DMCommand
         //return $this->replyDM('The profile picture for ' . $existingCharacter->getCharacterName() . ' has been set!');
 
         $this->imageMagick = $this->bot->getConfig('imagemagick');
+        $this->outputFolder = $this->bot->getConfig('avatar_output');
 
         $deferred = new Deferred();
 
@@ -206,8 +240,7 @@ class AvatarCommand extends DMCommand
             $this->bot->writeln($this->outputFileName);
             $this->bot->writeln($imageMagickAnalysis);
             $this->reply('Unable to process image - exit code: ' . $exitCode)->then(function() use ($that) {
-                /*$that->outputFile->remove()->then(function() { });
-                $that->deferred->resolve();*/
+                $that->deferred->resolve();
             });
             return;            
         }
@@ -230,7 +263,6 @@ class AvatarCommand extends DMCommand
 
         if (is_null($mime) || is_null($geometry)) {
             $this->reply('Unable to verify image data')->then(function() use ($that) {
-                $that->outputFile->remove()->then(function() { });
                 $that->deferred->resolve();
             });
             return;
@@ -244,8 +276,8 @@ class AvatarCommand extends DMCommand
         $resData = explode('x', $resolution);
 
         if (count($resData) != 2 || !is_numeric($resData[0]) || !is_numeric($resData[1])) {
+            $this->queueCleanup();
             $this->reply('Unable to extract geometry data')->then(function() use ($that) {
-                $that->outputFile->remove()->then(function() { });
                 $that->deferred->resolve();
             });
             return;
@@ -253,11 +285,159 @@ class AvatarCommand extends DMCommand
         $width = (int)round($resData[0]);
         $height = (int)round($resData[1]);
 
-        $this->reply(
-                '```Mimetype: ' . $mime . PHP_EOL . 
-                'Width: ' . $width . PHP_EOL . 
-                'Height: ' . $height . '```')->then(function() use ($that) {
+        $this->loop->futureTick(function() use ($width, $height, $mime, $that) {
+            $that->imageDataAvailable($width, $height, $mime);
+        });
+    }
+
+    /**
+     * Image data is available. Now parse the image.
+     *
+     * @param int $width
+     * @param int $height
+     * @param string $mime
+     * @return void
+     */
+    private function imageDataAvailable($width, $height, $mime)
+    {
+        $that = $this;
+
+        if ($height < self::AVATAR_DIMENSION || $width < self::AVATAR_DIMENSION) {
+            $this->queueCleanup();
+            $this->reply(
+                'This image is too small. It must be at least ' . self::AVATAR_DIMENSION . ' pixels wide and at least ' .
+                     self::AVATAR_DIMENSION . ' pixels high to be considered')->then(function() use ($that) {
+                $that->deferred->resolve();
+            });
+            return;
+        }
+
+        $this->inputWidth = $width;
+        $this->inputHeight = $height;
+        $this->inputMime = $mime;
+
+        $extension = 'png';
+        if (strtolower($mime) == 'image/jpeg' || strtolower($mime) == 'image/jpg') {
+            $extension = 'jpg';
+        }
+
+        $this->findAvailableAvatarFilename($extension);
+    }
+
+
+    /**
+     * Checks whether a file name for the picture download is available.
+     *
+     * @return void
+     */
+    private function findAvailableAvatarFilename($extension) 
+    {
+        $filename = bin2hex(random_bytes(16)) . '.' . $extension;
+        $that = $this;
+
+        $this->fileSystem->file($this->outputFolder . '/' . $filename)->exists()->then(function() use ($that, $extension) {
+            //File exists!
+            $that->findAvailableAvatarFilename($extension);
+        }, function() use ($that, $filename, $extension) {
+            $that->convertDownloadedFile($filename);
+        });
+    }
+
+    /**
+     * Performs the actual image conversion.
+     *
+     * @param string $avatarFileName
+     * @return void
+     */
+    private function convertDownloadedFile($avatarFileName) {
+        $that = $this;
+
+        $inputFileName = $this->outputFileName;
+        $outputFileName = $this->outputFolder . '/' . $avatarFileName;
+
+        $width = $this->inputWidth;
+        $height = $this->inputHeight;
+
+        $cropX = 0;
+        $cropEnabled = false;
+
+        $outputWidth = $width;
+        $outputHeight = $height;
+        if ($width > $height) {
+            $cropX = (int)(floor(($width - $height) / 2));
+            $outputWidth = $height;
+            $cropEnabled = true;
+        } else if ($width != $height) {
+            $cropX = 0;
+            $cropEnabled = true;
+            $outputHeight = $width;
+        }
+
+        $commandLine = $this->imageMagick . ' "' . $this->outputFileName . '" ';
+
+        if ($cropEnabled) {
+            $commandLine .= '-crop ' . $outputWidth . 'x' . $outputHeight . '+' . $cropX . '+0 ';
+        }
+
+        if ($outputWidth != self::AVATAR_DIMENSION || $outputHeight != self::AVATAR_DIMENSION) {
+            $commandLine .= ' -set option:filter:lobes 8 -resize ' . self::AVATAR_DIMENSION . 'x' . self::AVATAR_DIMENSION . ' ';
+        }
+
+        $commandLine .= ' "' . $outputFileName . '"';
+
+        $process = new \React\ChildProcess\Process($commandLine);
+
+        $process->on('exit', function() use ($outputFileName, $that) {
+            $that->conversionComplete($outputFileName);
+        });
+
+        $process->start($this->loop);        
+
+        $process->stdout->on('data', function ($chunk) use (&$stdout) {
+            echo $chunk;            
+        });
+        $process->stderr->on('data', function ($chunk) use (&$stdout) {
+            echo $chunk;            
+        });
+    }
+
+    /**
+     * File conversion complete.
+     *
+     * @param string $avatarFileName
+     * @return void
+     */
+    private function conversionComplete($avatarFileName) 
+    {
+        $that = $this;
+
+        $this->queueCleanup();
+
+        $this->reply('File saved as ' . $avatarFileName)->then(function() use ($that) {
             $that->deferred->resolve();
         });
+    }
+
+    /**
+     * Queues a file cleanup.
+     *
+     * @return void
+     */
+    private function queueCleanup()
+    {
+        $that = $this;
+        $this->loop->futureTick(function() use ($that) {
+            $that->performCleanup();
+        });
+    }
+
+    /**
+     * Performs a file cleanup.
+     *
+     * @return void
+     */
+    private function performCleanup()
+    {
+        $this->outputFile->remove()->then(function() { });
     }
 }
