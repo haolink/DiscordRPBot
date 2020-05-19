@@ -2,6 +2,8 @@
 
 namespace RPCharacterBot\Commands\DM;
 
+use DOMDocument;
+use DOMNode;
 use React\Filesystem\FilesystemInterface;
 use React\Filesystem\Node\File;
 use React\Filesystem\Node\FileInterface;
@@ -52,6 +54,13 @@ class AvatarCommand extends DMCommand
      * @var FileInterface
      */
     private $outputFile;
+
+    /**
+     * Maybe an HTML file was passed along.
+     *
+     * @var bool
+     */
+    private $testedForHtml;
 
     /**
      * Temporary file name locally.
@@ -135,6 +144,8 @@ class AvatarCommand extends DMCommand
 
         $deferred = new Deferred();
 
+        $this->testedForHtml = false;
+
         $filesystem = \React\Filesystem\Filesystem::create($this->messageInfo->bot->getLoop());
         $this->fileSystem = $filesystem;
 
@@ -191,7 +202,9 @@ class AvatarCommand extends DMCommand
             $response->pipe($that->outputFileStream);
         });
 
-        $that->outputFileStream->on('close', function() use ($that) {
+        $that->outputFileStream->on('close', function() use ($that, $filename) {
+            $that->outputFileStream->close();
+            $that->outputFile = $this->fileSystem->file($filename);
             $that->pictureDownloaded();
         });
 
@@ -237,11 +250,16 @@ class AvatarCommand extends DMCommand
         $that = $this;
 
         if ($exitCode != 0) {
-            $this->bot->writeln($this->outputFileName);
-            $this->bot->writeln($imageMagickAnalysis);
-            $this->reply('Unable to process image - exit code: ' . $exitCode)->then(function() use ($that) {
-                $that->deferred->resolve();
-            });
+            if (!$this->testedForHtml && class_exists('DOMDocument')) {
+                //Could it be an HTML file?
+                $this->testedForHtml = true;
+                $this->processAsHtml();
+            } else {
+                $that->queueCleanup();
+                $this->reply('Unable to process image - exit code: ' . $exitCode)->then(function() use ($that) {
+                    $that->deferred->resolve();
+                });
+            }            
             return;            
         }
         
@@ -262,7 +280,8 @@ class AvatarCommand extends DMCommand
         }
 
         if (is_null($mime) || is_null($geometry)) {
-            $this->reply('Unable to verify image data')->then(function() use ($that) {
+            $that->queueCleanup();
+            $this->reply('Unable to verify image data')->then(function() use ($that) {                
                 $that->deferred->resolve();
             });
             return;
@@ -438,6 +457,93 @@ class AvatarCommand extends DMCommand
      */
     private function performCleanup()
     {
-        $this->outputFile->remove()->then(function() { });
+        $that = $this;
+        $this->outputFile->exists(function() use($that) {
+            $that->remove()->then(function() { });
+        });
+    }
+
+    /**
+     * File was successfully downloaded and it's not an image file.
+     * Maybe it is a HTML file?
+     *
+     * @return void
+     */
+    private function processAsHtml()
+    {
+        $that = $this;
+
+        $this->outputFile->getContents()->then(function ($contents) use ($that) {
+            $that->outputFile->remove()->then(function() use ($contents, $that) {
+                $that->parseContents($contents);
+            });            
+        });
+    }
+
+    /**
+     * Attempts parsing the file content now as HTML.
+     *
+     * @param string $contents
+     * @return void
+     */
+    private function parseContents($contents)
+    {
+        $that = $this;
+
+        $dom = new DOMDocument;
+        libxml_use_internal_errors(true);
+
+        try {
+            $dom->loadHTML($contents);
+        } catch(\Exception $ex) {
+            $this->htmlProcessingFailed();
+            return;
+        }
+
+        $metaTags = array();
+
+        try {
+            $metaDom = $dom->getElementsByTagName("meta");
+            for ($i=0; $i < $metaDom->length; ++$i) {
+                /** @var DOMElement $item */
+                $item = $metaDom->item($i);
+                $name = $item->getAttribute('name');
+                
+                if (empty($name)) {
+                    $name = $item->getAttribute('property');                
+                }
+                
+                if (empty($name)) {
+                    continue;
+                }
+                
+                $metaTags[$name] = $item->getAttribute('content');            
+            }
+        } catch(\Exception $ex) {
+            $this->htmlProcessingFailed();
+            return;
+        }
+        
+        if (!array_key_exists('og:image', $metaTags)) {
+            $this->htmlProcessingFailed();
+            return;
+        }
+
+        $this->url = $metaTags['og:image'];
+        $this->findAvailableFilename();
+    }
+
+    /**
+     * Report an error.
+     *
+     * @return void
+     */
+    private function htmlProcessingFailed()
+    {
+        $that = $this;
+        $this->queueCleanup();
+        $this->reply('Unable to process image')->then(function() use ($that) {
+            $that->deferred->resolve();
+        });
     }
 }
