@@ -22,10 +22,6 @@ class TCommand extends RPCCommand
             return $this->replyDM('A character with the shortcut ' . $shortCut . ' doesn\'t exist.');
         }
 
-        if ($existingCharacter == $this->messageInfo->currentCharacter) {
-            return null; //No change??
-        }
-        
         if(count($words) > 1) {
             unset($words[0]);
 
