@@ -7,6 +7,9 @@ use CharlotteDunois\Yasmin\Client as DiscordClient;
 use CharlotteDunois\Yasmin\Models\Guild as DiscordGuild;
 use CharlotteDunois\Yasmin\Models\Message;
 use CharlotteDunois\Yasmin\Models\Role;
+use Ratchet\Http\HttpServer;
+use Ratchet\Server\IoServer;
+use Ratchet\WebSocket\WsServer;
 use React\MySQL\Factory as MysqlFactory;
 use React\MySQL\Io\LazyConnection;
 use RPCharacterBot\Commands\DMCommand;
@@ -115,7 +118,19 @@ class Bot
         $this->client->on('message', \Closure::fromCallable(array($this, 'onClientMessage')));
 
         $dbFactory = new MysqlFactory($loop);
-        $this->dbConnection = $dbFactory->createLazyConnection($config['db_connection']);        
+        $this->dbConnection = $dbFactory->createLazyConnection($config['db_connection']);                
+        
+        if (array_key_exists('websocket', $config) && $config['websocket']['enabled']) {
+            $listen = $config['websocket']['listen'];
+            $port = $config['websocket']['port'];
+            $this->writeln('Initialising websocket on ' . $listen . ':' . $port);
+
+            $socket = new \React\Socket\Server($listen . ':' . $config['websocket']['port'], $loop);
+
+            $mainServer = new SocketServer($loop, $this);
+
+            $webSocketServer = new IoServer(new HttpServer(new WsServer($mainServer)), $socket, $loop);
+        }                
     }
 
     /**

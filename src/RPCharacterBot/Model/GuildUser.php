@@ -178,4 +178,15 @@ class GuildUser extends CharacterDefaultModel
         $this->setUpdateState(self::DB_STATE_UPDATED);
         $this->formerCharacterId = $formerCharacterId;
     }
+
+    /**
+     * Removes user data from the cache.
+     *
+     * @param string $id
+     * @return void
+     */
+    public static function uncacheByUserId($id)
+    {
+        self::uncacheBySubQuery(array('user_id' => $id));
+    }
 }

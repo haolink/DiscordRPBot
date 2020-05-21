@@ -21,7 +21,13 @@ $config = array(
     'quickCommandPrefix' => '..',
     
     'avatar_output' => '/tmp/avatars',
-    'avatar_url' => 'https://rpbot.discordserver.com/avatars'
+    'avatar_url' => 'https://rpbot.discordserver.com/avatars',
+
+    'websocket' => array(
+        'enabled' => false,
+        'listen' => '127.0.0.1',
+        'port' => '33773'
+    )
 );
 
 ?>

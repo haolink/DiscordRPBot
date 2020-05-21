@@ -317,4 +317,15 @@ class Character extends BaseModel
 
         return $this;
     }
+    
+    /**
+     * Removes user data from the cache.
+     *
+     * @param string $id
+     * @return void
+     */
+    public static function uncacheByUserId($id)
+    {
+        self::uncacheBySubQuery(array('user_id' => $id));
+    }
 }

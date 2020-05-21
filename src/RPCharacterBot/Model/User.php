@@ -147,4 +147,15 @@ class User extends BaseModel
     {
         return $this->id;
     }
+
+    /**
+     * Removes user data from the cache.
+     *
+     * @param string $id
+     * @return void
+     */
+    public static function uncacheById($id)
+    {
+        self::uncacheBySubQuery(array('id' => $id));
+    }
 }

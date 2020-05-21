@@ -1,7 +1,8 @@
 {
     "require": {
         "laravel-discord/yasmin": "^0.8.2",
-        "react/mysql": "^0.5.4"
+        "react/mysql": "^0.5.4",
+        "cboden/ratchet": "0.4.*"
     },
     "autoload": {
         "psr-4": {
