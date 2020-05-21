@@ -12,6 +12,7 @@ use React\Promise\Deferred;
 use React\Promise\ExtendedPromiseInterface;
 use React\Stream\WritableStreamInterface;
 use RPCharacterBot\Commands\DMCommand;
+use RPCharacterBot\Model\Character;
 
 class AvatarCommand extends DMCommand
 {
@@ -112,6 +113,13 @@ class AvatarCommand extends DMCommand
     private $outputFolder;
 
     /**
+     * Selected Character.
+     *
+     * @var Character
+     */
+    private $selectedCharacter;
+
+    /**
      * Command to set a character's avatar.
      *
      * @return ExtendedPromiseInterface|null
@@ -130,6 +138,7 @@ class AvatarCommand extends DMCommand
         if (is_null($existingCharacter)) {
             return $this->replyDM('A character with the shortcut ' . $shortCut . ' doesn\'t exist.');
         }
+        $this->selectedCharacter = $existingCharacter;
 
         $url = $words[1];
         $this->url = $url;
@@ -406,8 +415,8 @@ class AvatarCommand extends DMCommand
 
         $process = new \React\ChildProcess\Process($commandLine);
 
-        $process->on('exit', function() use ($outputFileName, $that) {
-            $that->conversionComplete($outputFileName);
+        $process->on('exit', function() use ($outputFileName, $that, $avatarFileName) {
+            $that->conversionComplete($avatarFileName);
         });
 
         $process->start($this->loop);        
@@ -432,7 +441,9 @@ class AvatarCommand extends DMCommand
 
         $this->queueCleanup();
 
-        $this->reply('File saved as ' . $avatarFileName)->then(function() use ($that) {
+        $this->selectedCharacter->setCharacterAvatar($avatarFileName);
+
+        $this->reply('Avatar for character ' . $this->selectedCharacter->getCharacterName() . ' has been successfully updated.')->then(function() use ($that) {
             $that->deferred->resolve();
         });
     }

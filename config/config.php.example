@@ -18,7 +18,10 @@ $config = array(
 
     'oocPrefix' => '//',
     'mainCommandPrefix' => 'rp!',
-    'quickCommandPrefix' => '..'
+    'quickCommandPrefix' => '..',
+    
+    'avatar_output' => '/tmp/avatars',
+    'avatar_url' => 'https://rpbot.discordserver.com/avatars'
 );
 
 ?>

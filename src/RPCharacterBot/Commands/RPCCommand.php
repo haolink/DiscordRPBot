@@ -45,9 +45,18 @@ abstract class RPCCommand extends CommandHandler
         }
 
         $options = array(
-            'username' => $character->getCharacterName(),
-            'avatar' => $character->getCharacterAvatar()
+            'username' => $character->getCharacterName()
         );
+
+        $avatar = $character->getCharacterAvatar();
+
+        if (!is_null($avatar)) {
+            if (strpos($avatar, '://') === false) {
+                $avatar = $this->bot->getConfig('avatar_url') . $avatar;
+            }
+
+            $options['avatar'] = $avatar;
+        } 
 
         if (count($files) > 0) {
             $options['files'] = $files;
