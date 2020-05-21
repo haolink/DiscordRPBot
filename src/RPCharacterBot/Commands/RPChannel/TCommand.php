@@ -5,7 +5,7 @@ namespace RPCharacterBot\Commands\RPChannel;
 use RPCharacterBot\Commands\RPCCommand;
 use React\Promise\ExtendedPromiseInterface;
 
-class SwCommand extends RPCCommand
+class TCommand extends RPCCommand
 {
     protected function handleCommandInternal(): ?ExtendedPromiseInterface
     {
