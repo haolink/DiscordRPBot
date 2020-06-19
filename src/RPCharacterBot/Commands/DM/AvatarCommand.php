@@ -128,8 +128,21 @@ class AvatarCommand extends DMCommand
     {
         $words = $this->getMessageWords();
 
-        if(count($words) < 2) {
+        if (count($words) < 1) {   
             return $this->replyDM('Usage: avatar [shortcut] [avatar url]');
+        }
+
+        if (count($words) < 2) {
+            if ($this->messageInfo->message->attachments->count() > 0) {
+                $att = $this->messageInfo->message->attachments->first();
+                $url = $att->url;
+                $this->url = $url;
+            } else {
+                return $this->replyDM('Usage: avatar [shortcut] [avatar url]');
+            }            
+        } else {
+            $url = $words[1];
+            $this->url = $url;
         }
 
         $shortCut = strtolower($words[0]);                
@@ -139,9 +152,6 @@ class AvatarCommand extends DMCommand
             return $this->replyDM('A character with the shortcut ' . $shortCut . ' doesn\'t exist.');
         }
         $this->selectedCharacter = $existingCharacter;
-
-        $url = $words[1];
-        $this->url = $url;
 
         $this->tempFolder = sys_get_temp_dir();
         //$existingCharacter->setCharacterAvatar($words[1]);
