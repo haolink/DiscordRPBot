@@ -7,12 +7,12 @@ use React\Promise\Deferred;
 use React\Promise\ExtendedPromiseInterface;
 use RPCharacterBot\Bot\Bot;
 use RPCharacterBot\Common\Helpers\ClassHelper;
-use CharlotteDunois\Yasmin\Client as DiscordClient;
-use CharlotteDunois\Yasmin\Models\DMChannel;
-use CharlotteDunois\Yasmin\Models\GuildMember;
-use CharlotteDunois\Yasmin\Models\Message;
-use CharlotteDunois\Yasmin\Models\Permissions;
-use CharlotteDunois\Yasmin\Models\TextChannel;
+use Discord\Discord as DiscordClient;
+use Discord\Parts\User\Member;
+use Discord\Parts\Channel\Message;
+use Discord\Parts\Channel\Channel;
+use Discord\Parts\Permissions\Permission;
+use Discord\Parts\Permissions\RolePermission;
 use React\EventLoop\LoopInterface;
 use RPCharacterBot\Model\Character;
 
@@ -122,19 +122,19 @@ abstract class CommandHandler
          * Check if the user has the required permissions to run this command.
          */
         if (property_exists($class, 'REQUIRED_USER_PERMISSIONS') && 
-           (!$this->messageInfo->isDM) && ($textChannel instanceof TextChannel) &&
+           (!$this->messageInfo->isDM) && ($textChannel->type == Channel::TYPE_TEXT) &&
            is_array($class::$REQUIRED_USER_PERMISSIONS) && (count($class::$REQUIRED_USER_PERMISSIONS) > 0)) {
-            /** @var TextChannel $textChannel */
+            /** @var Channel $textChannel */
             /** @var array $requiredPermissions */
             $requiredPermissions = $class::$REQUIRED_USER_PERMISSIONS;            
             
-            $this->messageInfo->message->guild->fetchMember($this->messageInfo->message->author->id)->
-                    then(function(GuildMember $gm) use ($that, $deferred, $textChannel, $requiredPermissions) {
-                $permissions = $textChannel->permissionsFor($gm);
+            $this->messageInfo->message->channel->guild->members->fetch($this->messageInfo->message->author->id)->
+                    then(function(Member $gm) use ($that, $deferred, $textChannel, $requiredPermissions) {
+                $permissions = $gm->getPermissions($textChannel);
                 $matched = true;
-                foreach(Permissions::PERMISSIONS as $permString => $permNumber) {
+                foreach(RolePermission::getPermissions() as $permString => $permNumber) {
                     if (in_array($permString, $requiredPermissions)) {
-                        if (!$permissions->has($permNumber)) {
+                        if (!$permissions->{$permString}) {
                             $matched = false;
                             break;
                         }
@@ -176,19 +176,19 @@ abstract class CommandHandler
          * Check if the user has the required permissions to run this command.
          */
         if (property_exists($class, 'REQUIRED_CHANNEL_PERMISSIONS') && 
-           (!$this->messageInfo->isDM) && ($textChannel instanceof TextChannel) &&
+           (!$this->messageInfo->isDM) && ($textChannel->type == Channel::TYPE_TEXT) &&
            is_array($class::$REQUIRED_CHANNEL_PERMISSIONS) && (count($class::$REQUIRED_CHANNEL_PERMISSIONS) > 0)) {
-            /** @var TextChannel $textChannel */
+            /** @var Channel $textChannel */
             /** @var array $requiredPermissions */
             $requiredPermissions = $class::$REQUIRED_CHANNEL_PERMISSIONS;            
             
-            $this->messageInfo->message->guild->fetchMember($this->client->user->id)->
-                    then(function(GuildMember $gm) use ($that, $deferred, $textChannel, $requiredPermissions) {
-                $permissions = $textChannel->permissionsFor($gm);
+            $this->messageInfo->message->channel->guild->members->fetch($this->client->user->id)->
+                    then(function(Member $gm) use ($that, $deferred, $textChannel, $requiredPermissions) {
+                $permissions = $gm->getPermissions($textChannel);
                 $matched = true;
-                foreach(Permissions::PERMISSIONS as $permString => $permNumber) {
+                foreach(RolePermission::getPermissions() as $permString => $permNumber) {
                     if (in_array($permString, $requiredPermissions)) {
-                        if (!$permissions->has($permNumber)) {
+                        if (!$permissions->{$permString}) {
                             $matched = false;
                             break;
                         }
@@ -288,7 +288,7 @@ abstract class CommandHandler
      */
     protected function reply(string $message) : ExtendedPromiseInterface
     {        
-        return $this->messageInfo->message->channel->send($message);
+        return $this->messageInfo->message->channel->sendMessage($message);
     }
 
     /**
@@ -305,11 +305,9 @@ abstract class CommandHandler
             $deferred = new Deferred();
             
             $that = $this;
-            $this->messageInfo->message->author->createDM()->then(
-                function(DMChannel $channel) use ($that, $deferred, $message) {
-                    $channel->send($message)->then(function() use ($deferred) {
-                        $deferred->resolve();
-                    });
+            $this->messageInfo->message->author->sendMessage($message)->then(                
+                function() use ($deferred) {
+                    $deferred->resolve();
                 });
 
             return $deferred->promise();
@@ -388,8 +386,11 @@ abstract class CommandHandler
         $deferred = new Deferred();
 
         $this->reply($messageText)->then(function(Message $message) use ($deferred, $timeout) {
-            $this->loop->addTimer($timeout, function() use ($message) {
-                $message->delete()->done();
+            $messageToDelete = $message;
+            echo "Mark for delete: " . $messageToDelete->id . PHP_EOL;
+            $this->loop->addTimer($timeout, function() use ($messageToDelete) {
+                echo "Will delete: " . $messageToDelete->id . PHP_EOL;
+                $messageToDelete->delete()->done();
             });
             $deferred->resolve();
         });

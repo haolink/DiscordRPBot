@@ -13,7 +13,7 @@ class CharsettingCommand extends GuildCommand
      *
      * @var array
      */
-    protected static $REQUIRED_USER_PERMISSIONS = array('ADMINISTRATOR');
+    protected static $REQUIRED_USER_PERMISSIONS = array('administrator');
     
     /**
      * Sets up whether characters in this guild are per channel or guild wide.

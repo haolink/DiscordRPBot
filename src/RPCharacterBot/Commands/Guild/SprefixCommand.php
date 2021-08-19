@@ -12,7 +12,7 @@ class SprefixCommand extends GuildCommand
      *
      * @var array
      */
-    protected static $REQUIRED_USER_PERMISSIONS = array('ADMINISTRATOR');
+    protected static $REQUIRED_USER_PERMISSIONS = array('administrator');
     
     /**
      * Sets up the RP command prefix for a guild.

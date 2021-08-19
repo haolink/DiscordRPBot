@@ -75,7 +75,7 @@ class SocketServer implements MessageComponentInterface
             $payload = null;
         }
 
-        if (is_null($msgData)) {            
+        if (is_null($msgData) || is_null($command)) {            
             return;
         }
 

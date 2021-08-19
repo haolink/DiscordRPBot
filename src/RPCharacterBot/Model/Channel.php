@@ -2,7 +2,7 @@
 
 namespace RPCharacterBot\Model;
 
-use CharlotteDunois\Yasmin\Models\Webhook;
+use Discord\Parts\Channel\Webhook;
 use RPCharacterBot\Common\BaseModel;
 use RPCharacterBot\Common\DBQuery;
 

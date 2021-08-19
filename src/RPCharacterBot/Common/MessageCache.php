@@ -2,7 +2,7 @@
 
 namespace RPCharacterBot\Common;
 
-use CharlotteDunois\Yasmin\Models\Message;
+use Discord\Parts\Channel\Message;
 
 class MessageCache
 {

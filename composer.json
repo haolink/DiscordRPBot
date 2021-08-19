@@ -1,6 +1,6 @@
 {
     "require": {
-        "laravel-discord/yasmin": "^0.8.2",
+        "team-reflex/discord-php": "dev-master",
         "react/mysql": "^0.5.4",
         "cboden/ratchet": "0.4.*"
     },

@@ -4,9 +4,10 @@ namespace RPCharacterBot\Common;
 
 use CharlotteDunois\Collect\Collection;
 use CharlotteDunois\Yasmin\Interfaces\DMChannelInterface;
-use CharlotteDunois\Yasmin\Models\Message;
-use CharlotteDunois\Yasmin\Models\TextChannel;
-use CharlotteDunois\Yasmin\Models\Webhook;
+use Discord\Parts\Channel\Message;
+use Discord\Parts\Channel\Webhook;
+use Discord\Parts\Channel\Channel as TextChannel;
+use Discord\Repository\Channel\WebhookRepository;
 use React\Promise\Deferred;
 use React\Promise\PromiseInterface;
 use RPCharacterBot\Bot\Bot;
@@ -219,7 +220,7 @@ class MessageInfo
      */
     private function fetchGuildData(Deferred $deferred)
     {
-        if ($this->_message->channel instanceof DMChannelInterface) {
+        if ($this->_message->channel->type == TextChannel::TYPE_DM) {
             $this->_isRPChannel = false;
             $this->_isDM = true;
             $this->_mainPrefix = null;
@@ -229,7 +230,7 @@ class MessageInfo
         }
 
         $that = $this;
-        Guild::fetchSingleByQuery(array('id' => $this->_message->guild->id))->then(
+        Guild::fetchSingleByQuery(array('id' => $this->_message->channel->guild->id))->then(
             function (Guild $guild) use ($that, $deferred) {
                 $that->_guild = $guild;
                 $that->_isDM = false;
@@ -295,8 +296,8 @@ class MessageInfo
 
         $that = $this;
         /** @var TextChannel $discChannel */
-        $discordChannel->fetchWebhooks()->then(
-            function (Collection $webhooks) use ($that, $discordChannel, $channel, $deferred) {
+        $discordChannel->webhooks->freshen()->then(
+            function (WebhookRepository $webhooks) use ($that, $discordChannel, $channel, $deferred) {
                 $matchedWebhook = null;
                 foreach ($webhooks as $webhook) {
                     /** @var Webhook $webhook */

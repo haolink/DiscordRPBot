@@ -3,10 +3,11 @@
 namespace RPCharacterBot\Bot;
 
 use React\EventLoop\LoopInterface;
-use CharlotteDunois\Yasmin\Client as DiscordClient;
-use CharlotteDunois\Yasmin\Models\Guild as DiscordGuild;
-use CharlotteDunois\Yasmin\Models\Message;
-use CharlotteDunois\Yasmin\Models\Role;
+
+use Discord\Discord;
+use Discord\Parts\Channel\Channel as DiscordChannel;
+use Discord\Parts\Channel\Message;
+use Discord\Parts\Guild\Guild as DiscordGuild;
 use Ratchet\Http\HttpServer;
 use Ratchet\Server\IoServer;
 use Ratchet\WebSocket\WsServer;
@@ -50,7 +51,7 @@ class Bot
     /**
      * Discord client.
      *
-     * @var DiscordClient
+     * @var Discord
      */
     private $client;
 
@@ -112,7 +113,10 @@ class Bot
         $this->config = $config;
         $this->token = $config['discord_token'];
 
-        $this->client = new DiscordClient(array(), $loop);
+        $this->client = new Discord(array(
+            'loop' => $loop,
+            'token' => $this->token
+        ));
         $this->client->on('error', \Closure::fromCallable(array($this, 'onClientError')));
         $this->client->on('ready', \Closure::fromCallable(array($this, 'onClientReady')));
         $this->client->on('message', \Closure::fromCallable(array($this, 'onClientMessage')));
@@ -125,7 +129,7 @@ class Bot
             $port = $config['websocket']['port'];
             $this->writeln('Initialising websocket on ' . $listen . ':' . $port);
 
-            $socket = new \React\Socket\Server($listen . ':' . $config['websocket']['port'], $loop);
+            $socket = new \React\Socket\SocketServer($listen . ':' . $config['websocket']['port'], array(), $loop);
 
             $mainServer = new SocketServer($loop, $this);
 
@@ -164,8 +168,8 @@ class Bot
      */
     private function onClientReady()
     {        
-        $this->output->writeln('Logged in as ' . $this->client->user->tag . ' created on ' . 
-            $this->client->user->createdAt->format('d.m.Y H:i:s'));
+        $this->output->writeln('Logged in as ' . $this->client->user->username . ' created on ' . 
+            date('d.m.Y H:i:s', $this->client->user->createdTimestamp()));
     }
 
     /**
@@ -179,7 +183,7 @@ class Bot
             return false;
         }
         $this->connected = true;
-        $this->client->login($this->token)->done();
+        $this->client->run();
 
         return true;
     }
@@ -260,14 +264,20 @@ class Bot
      * @param Message $message
      * @return void
      */
-    private function onClientMessage(Message $message)
+    private function onClientMessage(Message $message, Discord $discord)
     {
         $that = $this;
 
-        if ($message->author->bot) {
-            MessageCache::identifyBotMessage($message);
-            return;
-        }
+        if ($message->channel->type != DiscordChannel::TYPE_DM) {
+            if (!is_null($message->author->user) && $message->author->user->bot) { //is by a bot
+                return;
+            }
+    
+            if ($message->author->user == null) {
+                MessageCache::identifyBotMessage($message);
+                return;
+            }
+        }        
         
         MessageInfo::parseMessage($this, $message)->then(function(MessageInfo $messageInfo) use($that) {
             $that->messageDataAvailable($messageInfo);
@@ -400,7 +410,7 @@ class Bot
      * Undocumented function
      *
      * @param string $word
-     * @param DiscordGuild $guild
+     * @param Guild $guild
      * @return boolean
      */
     private function isAPingAtMe(string $word, DiscordGuild $guild) : bool {
@@ -467,7 +477,7 @@ class Bot
         //Exception for prefix command        
         
         $commandAttachment = '';
-        if($this->isAPingAtMe($firstWord, $info->message->guild)) {
+        if($this->isAPingAtMe($firstWord, $info->message->channel->guild)) {
             if (count($words) == 1) {
                 return false;
             }
@@ -527,15 +537,16 @@ class Bot
     {
         $defaultHandler = new DefaultHandler($info);
         $defaultHandler->handleCommand();
+        $info->message->delete()->done();
         return true;
     }
 
     /**
      * Get discord client.
      *
-     * @return  DiscordClient
+     * @return  Discord
      */ 
-    public function getClient() : DiscordClient
+    public function getClient() : Discord
     {
         return $this->client;
     }

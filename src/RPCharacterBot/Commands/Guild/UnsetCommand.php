@@ -2,12 +2,11 @@
 
 namespace RPCharacterBot\Commands\Guild;
 
-use CharlotteDunois\Yasmin\Models\Webhook;
-use CharlotteDunois\Yasmin\Models\TextChannel;
+use Discord\Parts\Channel\Webhook;
+use Discord\Parts\Channel\Channel;
 use React\Promise\Deferred;
 use RPCharacterBot\Commands\GuildCommand;
 use React\Promise\ExtendedPromiseInterface;
-use RPCharacterBot\Model\Channel;
 
 class UnsetCommand extends GuildCommand
 {
@@ -16,14 +15,14 @@ class UnsetCommand extends GuildCommand
      *
      * @var array
      */
-    protected static $REQUIRED_CHANNEL_PERMISSIONS = array('MANAGE_WEBHOOKS', 'MANAGE_MESSAGES');
+    protected static $REQUIRED_CHANNEL_PERMISSIONS = array('manage_webhooks', 'manage_messages');
 
     /**
      * User executing this command requires the following permissions.
      *
      * @var array
      */
-    protected static $REQUIRED_USER_PERMISSIONS = array('ADMINISTRATOR');
+    protected static $REQUIRED_USER_PERMISSIONS = array('administrator');
     
     /**
      * Sets up a channel for RPing.
@@ -40,7 +39,7 @@ class UnsetCommand extends GuildCommand
         $that = $this;
 
         $this->messageInfo->channel->delete();
-        $this->messageInfo->webhook->delete()->then(function() use($that) {
+        $this->messageInfo->message->channel->webhooks->delete($this->messageInfo->webhook)->then(function() use($that) {
             $that->messageInfo->message->delete()->done();
             $that->sendSelfDeletingReply('Channel has been unregistered!');
         });

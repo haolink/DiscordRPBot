@@ -2,7 +2,7 @@
 
 namespace RPCharacterBot\Commands;
 
-use CharlotteDunois\Yasmin\Models\Message;
+use Discord\Parts\Channel\Message;
 use React\Promise\Deferred;
 use React\Promise\ExtendedPromiseInterface;
 use RPCharacterBot\Common\CommandHandler;
@@ -30,11 +30,19 @@ abstract class RPCCommand extends CommandHandler
 
             $files = array();
     
-            if (is_object($message->attachments) && $message->attachments->count() > 0) {
+            if (is_array($message->attachments) && count($message->attachments) > 0) {                
                 foreach ($message->attachments as $attachment) {
+                    if (substr($attachment->content_type, 0, 5) != 'image') {
+                        continue;
+                    }
                     $files[] = array(
-                        'name' => $attachment->filename,
-                        'path' => $attachment->url
+                        'url' => $attachment->url,
+                        'type' => 'rich',
+                        'image' => [
+                            'url' => $attachment->url,
+                            'width' => $attachment->width,
+                            'height' => $attachment->height
+                        ]
                     );
                 }
             }
@@ -55,24 +63,26 @@ abstract class RPCCommand extends CommandHandler
                 $avatar = $this->bot->getConfig('avatar_url') . $avatar;
             }
 
-            $options['avatar'] = $avatar;
+            $options['avatar_url'] = $avatar;
         } 
 
         if (count($files) > 0) {
-            $options['files'] = $files;
+            $options['embeds'] = $files;
         } elseif (empty($content))         {
             return null;
         }
+
+        $options['content'] = $content ?? 'Empty';
 
         MessageCache::submitToWebHook($this->messageInfo->user->getId(), $this->messageInfo->channel->getId(),
             $character->getCharacterName(), $content);
 
         $deferred = new Deferred();
-
-        $this->messageInfo->webhook->send($content, $options)->then(function () use ($message, $deferred) {
-            $message->delete()->then(function () use($deferred) {
+        
+        $this->messageInfo->webhook->execute($options)->then(function () use ($message, $deferred) {
+            //$message->delete()->then(function () use($deferred) {
                 $deferred->resolve();
-            });
+            //});
         });
 
         return $deferred->promise();

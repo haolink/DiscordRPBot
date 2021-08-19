@@ -46,6 +46,6 @@ class ListCommand extends DMCommand
             $text .= '```';
         }        
 
-        return $this->messageInfo->message->channel->send($text);
+        return $this->messageInfo->message->channel->sendMessage($text);
     }
 }

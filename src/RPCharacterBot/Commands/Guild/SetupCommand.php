@@ -2,8 +2,8 @@
 
 namespace RPCharacterBot\Commands\Guild;
 
-use CharlotteDunois\Yasmin\Models\Webhook;
-use CharlotteDunois\Yasmin\Models\TextChannel;
+use Discord\Parts\Channel\Webhook;
+use Discord\Parts\Channel\Channel as DiscordChannel;
 use React\Promise\Deferred;
 use RPCharacterBot\Commands\GuildCommand;
 use React\Promise\ExtendedPromiseInterface;
@@ -16,14 +16,14 @@ class SetupCommand extends GuildCommand
      *
      * @var array
      */
-    protected static $REQUIRED_CHANNEL_PERMISSIONS = array('MANAGE_WEBHOOKS', 'MANAGE_MESSAGES');
+    protected static $REQUIRED_CHANNEL_PERMISSIONS = array('manage_webhooks', 'manage_messages');
 
     /**
      * User executing this command requires the following permissions.
      *
      * @var array
      */
-    protected static $REQUIRED_USER_PERMISSIONS = array('ADMINISTRATOR');
+    protected static $REQUIRED_USER_PERMISSIONS = array('administrator');
     
     /**
      * Sets up a channel for RPing.
@@ -39,12 +39,21 @@ class SetupCommand extends GuildCommand
         $deferred = new Deferred();
         $that = $this;
 
-        /** @var TextChannel $textChannel */
+        /** @var DiscordChannel $textChannel */
         $textChannel = $this->messageInfo->message->channel;
-        $textChannel->createWebhook('RPBot')->then(function(Webhook $webhook) use ($that, $deferred, $textChannel) {
+
+        /** @var WebHook $webhook */
+        $webhook = $textChannel->webhooks->create(array(
+            'name' => 'RPBot',
+            'guild_id' => $this->messageInfo->message->channel->guild->id,
+            'channel_id' => $this->messageInfo->message->channel->id
+        ));
+
+        $inputMessage = $that->messageInfo->message;
+        $textChannel->webhooks->save($webhook)->then(function(Webhook $webhook) use ($that, $deferred, $textChannel, $inputMessage) {
             $channel = Channel::registerRpChannel($textChannel->id, $webhook->id, $that->messageInfo->guild->getId());
-            $that->sendSelfDeletingReply('The channel has been registered for RPing!')->then(function() use($deferred, $that) {
-                $that->messageInfo->message->delete()->done();
+            $that->sendSelfDeletingReply('The channel has been registered for RPing!')->then(function() use($deferred, $that, $inputMessage) {
+                $inputMessage->delete()->done();
                 $deferred->resolve();
             });
         }, function($error) use($that, $deferred) {

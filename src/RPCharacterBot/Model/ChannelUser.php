@@ -84,7 +84,7 @@ class ChannelUser extends CharacterDefaultModel
                 channel_users
                 (channel_id, user_id, character_id, former_character_id)
             VALUES
-                (?, ?, ?)
+                (?, ?, ?, ?)
         ', array(
             $this->channelId, $this->userId, $this->characterId, $this->formerCharacterId
         ));

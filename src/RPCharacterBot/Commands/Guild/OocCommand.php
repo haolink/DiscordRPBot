@@ -12,7 +12,7 @@ class OocCommand extends GuildCommand
      *
      * @var array
      */
-    protected static $REQUIRED_USER_PERMISSIONS = array('ADMINISTRATOR');
+    protected static $REQUIRED_USER_PERMISSIONS = array('administrator');
     
     /**
      * Sets up whether OOC talk is allowed or not in a chnnel.
