@@ -8,6 +8,7 @@ use Discord\Parts\Thread\Thread;
 use React\Promise\Deferred;
 use RPCharacterBot\Commands\GuildCommand;
 use React\Promise\ExtendedPromiseInterface;
+use RPCharacterBot\Common\Helpers\ThreadHelper;
 use RPCharacterBot\Model\Channel;
 
 class SetupCommand extends GuildCommand
@@ -98,7 +99,8 @@ class SetupCommand extends GuildCommand
             $channel = Channel::registerRpChannel($textChannel->id, $webhook->id, $that->messageInfo->guild->getId(), true, $useSubThreads);
             
             if ($useSubThreads) {
-                $that->reply('The channel has been registered for RPing using threads! Please just type in the name of an adventure and it will be turned into a thread.')->then(function() use($deferred, $that, $inputMessage) {
+                $that->reply('The channel has been registered for RPing using threads! To create a thread please use the following command:' . PHP_EOL . '`' . $this->messageInfo->mainPrefix . 'new [Thread name]`')->then(function() use($deferred, $that, $inputMessage) {
+                    ThreadHelper::onThreadedRpChannelCreated($inputMessage->channel, $that->bot->getClient());
                     $inputMessage->delete()->done();
                     $deferred->resolve();
                 });

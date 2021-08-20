@@ -8,6 +8,8 @@ use Discord\Discord;
 use Discord\Parts\Channel\Channel as DiscordChannel;
 use Discord\Parts\Channel\Message;
 use Discord\Parts\Guild\Guild as DiscordGuild;
+use Discord\Parts\Thread\Thread;
+use Discord\WebSockets\Event;
 use Ratchet\Http\HttpServer;
 use Ratchet\Server\IoServer;
 use Ratchet\WebSocket\WsServer;
@@ -18,6 +20,7 @@ use RPCharacterBot\Commands\GuildCommand;
 use RPCharacterBot\Commands\RPCCommand;
 use RPCharacterBot\Commands\RPChannel\DefaultHandler;
 use RPCharacterBot\Commands\RPChannel\OOCHandler;
+use RPCharacterBot\Common\Helpers\ThreadHelper;
 use RPCharacterBot\Common\Log\ConsoleOutput;
 use RPCharacterBot\Common\MessageCache;
 use RPCharacterBot\Common\MessageInfo;
@@ -118,8 +121,7 @@ class Bot
             'token' => $this->token
         ));
         $this->client->on('error', \Closure::fromCallable(array($this, 'onClientError')));
-        $this->client->on('ready', \Closure::fromCallable(array($this, 'onClientReady')));
-        $this->client->on('message', \Closure::fromCallable(array($this, 'onClientMessage')));
+        $this->client->on('ready', \Closure::fromCallable(array($this, 'onClientReady')));        
 
         $dbFactory = new MysqlFactory($loop);
         $this->dbConnection = $dbFactory->createLazyConnection($config['db_connection']);                
@@ -168,6 +170,9 @@ class Bot
      */
     private function onClientReady()
     {        
+        $this->client->on(Event::MESSAGE_CREATE, \Closure::fromCallable(array($this, 'onClientMessage')));
+        $this->client->on(Event::THREAD_CREATE, \Closure::fromCallable(array($this, 'onNewGuildThread')));        
+
         $this->output->writeln('Logged in as ' . $this->client->user->username . ' created on ' . 
             date('d.m.Y H:i:s', $this->client->user->createdTimestamp()));
     }
@@ -266,6 +271,11 @@ class Bot
      */
     private function onClientMessage(Message $message, Discord $discord)
     {
+        $ignoredMessageTypes = array(18, 21);
+        if (in_array($message->type, $ignoredMessageTypes)) {
+            return;
+        }
+
         $that = $this;
 
         if ($message->channel->type != DiscordChannel::TYPE_DM) {
@@ -319,15 +329,8 @@ class Bot
                 if ($this->handleRPChannelOoc($info)) {
                     return;
                 }                
-            } else {
-                if ($this->handleRPChannelCommand($info, true)) {
-                    return;
-                }
-                if ($this->handleRPChannelOoc($info, true)) {
-                    return;
-                }                
-            }
-            $this->handleRPChannelMessage($info);        
+                $this->handleRPChannelMessage($info);
+            }       
         } else {
             if ($this->handleGuildCommand($info)) {
                 return;
@@ -566,6 +569,17 @@ class Bot
         });
         
         return true;
+    }
+
+    /**
+     * When a new thread was created - verify whether this thread is in a threaded RP channel.
+     * If so join.
+     *
+     * @param Thread $thread
+     * @return void
+     */
+    private function onNewGuildThread(Thread $thread) {
+        ThreadHelper::onNewThread($thread, $this->client);
     }
 
     /**
