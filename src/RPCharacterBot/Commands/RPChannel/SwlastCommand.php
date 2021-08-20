@@ -2,6 +2,7 @@
 
 namespace RPCharacterBot\Commands\RPChannel;
 
+use React\Promise\Deferred;
 use RPCharacterBot\Commands\RPCCommand;
 use React\Promise\ExtendedPromiseInterface;
 
@@ -36,8 +37,20 @@ class SwlastCommand extends RPCCommand
         }
         
         $this->messageInfo->characterDefaultSettings->setFormerCharacterId($this->messageInfo->currentCharacter->getId());        
-        $this->messageInfo->characterDefaultSettings->setDefaultCharacterId($existingCharacter->getId());        
+        $this->messageInfo->characterDefaultSettings->setDefaultCharacterId($existingCharacter->getId());                
 
-        return $this->resubmitMessageAsCharacter($this->messageInfo->lastSubmittedMessage, $existingCharacter);
+        $that = $this;
+
+        $deferred = new Deferred();
+
+        $oldMessage = $this->messageInfo->lastSubmittedMessage;
+
+        $oldMessage->delete()->then(function() use ($deferred, $oldMessage, $existingCharacter, $that) {
+            $that->resubmitMessageAsCharacter($oldMessage, $existingCharacter)->then(function() use ($deferred) {
+                $deferred->resolve();
+            });
+        });
+
+        return $deferred->promise();        
     }
 }

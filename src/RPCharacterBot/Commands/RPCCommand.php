@@ -74,17 +74,35 @@ abstract class RPCCommand extends CommandHandler
 
         $options['content'] = $content ?? 'Empty';
 
-        MessageCache::submitToWebHook($this->messageInfo->user->getId(), $this->messageInfo->channel->getId(),
+        MessageCache::submitToWebHook($this->messageInfo->user->getId(), $this->messageInfo->message->channel->id,
             $character->getCharacterName(), $content);
 
         $deferred = new Deferred();
         
-        $this->messageInfo->webhook->execute($options)->then(function () use ($message, $deferred) {
+        $threadId = null;
+        if ($this->messageInfo->isRPThread) {
+            $threadId = $this->messageInfo->thread->id;
+        }
+
+        $this->messageInfo->webhook->execute($options, $threadId)->then(function () use ($message, $deferred) {
             //$message->delete()->then(function () use($deferred) {
                 $deferred->resolve();
             //});
         });
 
         return $deferred->promise();
+    }
+
+    /**
+     * Are RP replacements available here?
+     *
+     * @return boolean
+     */
+    protected function isRPAvailableInChannel() {
+        if ($this->messageInfo->channel->getUseSubThreads()) {
+            return $this->messageInfo->isRPThread;
+        } else {
+            return is_null($this->messageInfo->thread);
+        }
     }
 }

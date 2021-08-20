@@ -33,6 +33,13 @@ class Channel extends BaseModel
     protected $allowOoc = true;
 
     /**
+     * Does this channel do RPs via sub-theads?
+     *
+     * @var boolean
+     */
+    protected $useSubThreads = false;
+
+    /**
      * Webhook object.
      *
      * @var Webhook
@@ -63,13 +70,14 @@ class Channel extends BaseModel
     {
         return new DBQuery(
             'INSERT INTO channels
-                (id, webhook_id, allow_ooc)
+                (id, webhook_id, allow_ooc, use_threads)
             VALUES
-                (?, ?, ?)',
+                (?, ?, ?, ?)',
             array(
                 $this->id,
                 $this->webhookId,
-                $this->allowOoc ? 1:0
+                $this->allowOoc ? 1:0,
+                $this->useSubThreads ? 1:0
             ));
     }
 
@@ -97,12 +105,14 @@ class Channel extends BaseModel
         return new DBQuery(
             'UPDATE channels
                 SET webhook_id = ?,
-                    allow_ooc = ?
+                    allow_ooc = ?,
+                    use_threads = ?
             WHERE
                 id = ?',
             array(
                 $this->webhookId,
                 ($this->allowOoc ? 1:0),                
+                ($this->useSubThreads ? 1:0),
                 $this->id
             ));
     }
@@ -118,6 +128,7 @@ class Channel extends BaseModel
         $this->id = $dbRow['id'];
         $this->webhookId = $dbRow['webhook_id'];
         $this->allowOoc = ($dbRow['allow_ooc'] != 0);
+        $this->useSubThreads = ($dbRow['use_threads'] != 0);
     }
 
     /**
@@ -131,6 +142,7 @@ class Channel extends BaseModel
         $this->id = $query['id'];
         $this->webhookId = null; //Will cause a saving error!
         $this->allowOoc = true;
+        $this->useSubThreads = false;
     }
 
     /**
@@ -140,12 +152,14 @@ class Channel extends BaseModel
      * @param string $webhookId
      * @return void
      */
-    public static function registerRpChannel(string $channelId, string $webhookId, string $guildId) : Channel
+    public static function registerRpChannel(string $channelId, string $webhookId, string $guildId, bool $allowOoc = true, bool $useSubThreads = true) : Channel
     {
         $channel = new Channel();
         $channel->id = $channelId;
         $channel->webhookId = $webhookId;
         $channel->dbState = self::DB_STATE_NEW;
+        $channel->allowOoc = $allowOoc;
+        $channel->useSubThreads = $useSubThreads;
         
         self::addToCache(get_class($channel), array(
             'id' => $channelId,
@@ -234,6 +248,30 @@ class Channel extends BaseModel
     public function setWebhook(Webhook $webhook)
     {
         $this->webhook = $webhook;
+
+        return $this;
+    }
+
+    /**
+     * Get does this channel do RPs via sub-theads?
+     *
+     * @return  boolean
+     */ 
+    public function getUseSubThreads()
+    {
+        return $this->useSubThreads;
+    }
+
+    /**
+     * Set does this channel do RPs via sub-theads?
+     *
+     * @param  boolean  $useSubThreads  Does this channel do RPs via sub-theads?
+     *
+     * @return  self
+     */ 
+    public function setUseSubThreads(bool $useSubThreads)
+    {
+        $this->useSubThreads = $useSubThreads;
 
         return $this;
     }

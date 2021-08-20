@@ -15,6 +15,7 @@ class Guild extends BaseModel
 
     const RPCHAR_SETTING_CHANNEL = 1;
     const RPCHAR_SETTING_GUILD = 2;
+    const RPCHAR_SETTING_THREAD = 3;
 
     /**
      * Guild ID (stored as string in PHP, as BIGINT in MariaDB).
@@ -28,7 +29,7 @@ class Guild extends BaseModel
      *
      * @var int
      */
-    protected $rpCharacterSetting = self::RPCHAR_SETTING_CHANNEL;
+    protected $rpCharacterSetting = self::RPCHAR_SETTING_THREAD;
 
     /**
      * Message prefix.
@@ -138,7 +139,7 @@ class Guild extends BaseModel
     protected function createNewFromQuery(array $query)
     {
         $this->id = $query['id'];
-        $this->rpCharacterSetting = self::RPCHAR_SETTING_CHANNEL;
+        $this->rpCharacterSetting = self::RPCHAR_SETTING_THREAD;
     }
 
     /**

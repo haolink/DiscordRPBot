@@ -8,6 +8,7 @@ use React\EventLoop\LoopInterface;
 use RPCharacterBot\Model\ChannelUser;
 use RPCharacterBot\Model\Character;
 use RPCharacterBot\Model\GuildUser;
+use RPCharacterBot\Model\ThreadUser;
 use RPCharacterBot\Model\User;
 
 class SocketServer implements MessageComponentInterface
@@ -99,6 +100,7 @@ class SocketServer implements MessageComponentInterface
         Character::uncacheByUserId($userId);
         GuildUser::uncacheByUserId($userId);
         ChannelUser::uncacheByUserId($userId);
+        ThreadUser::uncacheByUserId($userId);
         User::uncacheById($userId);
     }
 

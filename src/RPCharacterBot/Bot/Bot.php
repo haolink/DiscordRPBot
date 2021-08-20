@@ -302,7 +302,7 @@ class Bot
      *
      * @param MessageInfo $info
      * @return void
-     */
+     */ 
     private function messageDataAvailable(MessageInfo $info)
     {       
         if ($info->isDM) {
@@ -310,14 +310,24 @@ class Bot
         } elseif ($info->isRPChannel) {
             if ($this->handleGuildCommand($info)) {
                 return;
-            }            
-            if ($this->handleRPChannelCommand($info)) {
-                return;
             }
-            if ($this->handleRPChannelOoc($info)) {
-                return;
+
+            if (!(!is_null($info->thread) xor $info->channel->getUseSubThreads())) {
+                if ($this->handleRPChannelCommand($info)) {
+                    return;
+                }
+                if ($this->handleRPChannelOoc($info)) {
+                    return;
+                }                
+            } else {
+                if ($this->handleRPChannelCommand($info, true)) {
+                    return;
+                }
+                if ($this->handleRPChannelOoc($info, true)) {
+                    return;
+                }                
             }
-            $this->handleRPChannelMessage($info);            
+            $this->handleRPChannelMessage($info);        
         } else {
             if ($this->handleGuildCommand($info)) {
                 return;
@@ -381,7 +391,7 @@ class Bot
      * @param MessageInfo $info
      * @return bool Was able to handle a command.
      */
-    private function handleRPChannelCommand(MessageInfo $info)
+    private function handleRPChannelCommand(MessageInfo $info, bool $onlyCheckAvailability = false)
     {
         $messageText = $info->message->content ?? '';
         $words = explode(' ', $messageText);
@@ -394,12 +404,19 @@ class Bot
 
         if (is_null($commandName)) {
             return false;
-        }
+        }        
 
         $command = RPCCommand::searchCommand($commandName, $info);
         if (!is_null($command)) {
-            $command->handleCommand()->done();
-            $info->message->delete()->done();
+            if ($onlyCheckAvailability) {
+                return true;
+            }
+
+            $command->handleCommand()->then(function() use ($info) {
+                if (!$info->preventDeletion) {
+                    $info->message->delete()->done();
+                }
+            });            
 
             return true;
         }
@@ -506,7 +523,7 @@ class Bot
      * @param MessageInfo $info
      * @return void
      */
-    private function handleRPChannelOoc(MessageInfo $info)
+    private function handleRPChannelOoc(MessageInfo $info, bool $onlyCheckAvailability = false)
     {
         if (!$info->channel->getAllowOoc()) {
             return false;
@@ -519,6 +536,10 @@ class Bot
         $matchBrackets = preg_match('/^(\[(.*)\]|\((.*)\)|\{(.*)\})$/us', $messageText);
 
         if (!is_null($cmd) || $matchBrackets) {
+            if ($onlyCheckAvailability) {
+                return true;
+            }
+
             $oocHandler = new OOCHandler($info);
             $oocHandler->handleCommand()->done();
             return true;
@@ -536,8 +557,14 @@ class Bot
     private function handleRPChannelMessage(MessageInfo $info) : bool
     {
         $defaultHandler = new DefaultHandler($info);
-        $defaultHandler->handleCommand();
-        $info->message->delete()->done();
+        $defaultHandler->handleCommand()->then(function() use ($info) {
+            if (!$info->preventDeletion) {
+                $info->message->delete()->done();
+            }
+        }, function($rej) {
+            print_r($rej);
+        });
+        
         return true;
     }
 

@@ -7,6 +7,7 @@ use CharlotteDunois\Yasmin\Interfaces\DMChannelInterface;
 use Discord\Parts\Channel\Message;
 use Discord\Parts\Channel\Webhook;
 use Discord\Parts\Channel\Channel as TextChannel;
+use Discord\Parts\Thread\Thread;
 use Discord\Repository\Channel\WebhookRepository;
 use React\Promise\Deferred;
 use React\Promise\PromiseInterface;
@@ -19,6 +20,7 @@ use RPCharacterBot\Model\User;
 use RPCharacterBot\Common\CharacterDefaultModel;
 use RPCharacterBot\Model\ChannelUser;
 use RPCharacterBot\Model\GuildUser;
+use RPCharacterBot\Model\ThreadUser;
 
 /**
  * Descriptor for a final RP Bot message to be parsed.
@@ -27,6 +29,7 @@ use RPCharacterBot\Model\GuildUser;
  * @property Message|null $lastSubmittedMessage Last submitted message by this user.
  * @property Guild $guild Discord RP guild data for this message.
  * @property Channel|null $channel RP channel info.
+ * @property Thread|null $thread Discord thread.
  * @property Webhook $webhook Discord Webhook object.
  * @property User $user RP user object.
  * @property Character[] $characters RP characters of the user.
@@ -35,9 +38,10 @@ use RPCharacterBot\Model\GuildUser;
  * @property CharacterDefaultModel|null $characterDefaultSettings Default settings for this channel/guild.
  * @property bool $isDM Are we currently having DM talk.
  * @property bool $isRPChannel Are we currently in a RP channel.
+ * @property bool $isRPThread Are we currently in a RP thread.
  * @property string $oocSequence OOC Text by this user.
  * @property string $mainPrefix Main prefix to be used in this guild.
- * @property string $quickPrefix Quick prefix to be used in this guild.
+ * @property string $quickPrefix Quick prefix to be used in this guild.q
  * @property Bot $bot Discord main bot object.
  */
 class MessageInfo
@@ -69,6 +73,27 @@ class MessageInfo
      * @var Channel|null
      */
     protected $_channel;
+
+    /**
+     * Is the message coming from a thread?
+     *
+     * @var boolean
+     */
+    protected $_isThread;
+
+    /**
+     * Is this an RP thread?
+     *
+     * @var boolean
+     */
+    protected $_isRPThread;
+
+    /**
+     * Thread.
+     *
+     * @var Thread|null
+     */
+    protected $_thread;
 
     /**
      * Webhook.
@@ -153,6 +178,13 @@ class MessageInfo
      * @var Bot
      */
     protected $_bot;
+    
+    /**
+     * Prevent deleting of a message.
+     *
+     * @var boolean
+     */
+    public $preventDeletion;
 
     /**
      * Magic method for simple properties.
@@ -180,6 +212,8 @@ class MessageInfo
     {
         $this->_bot = $bot;
         $this->_message = $message;
+
+        $this->preventDeletion = false;
     }
 
     /**
@@ -223,6 +257,7 @@ class MessageInfo
         if ($this->_message->channel->type == TextChannel::TYPE_DM) {
             $this->_isRPChannel = false;
             $this->_isDM = true;
+            $this->_isThread = false;
             $this->_mainPrefix = null;
             $this->_quickPrefix = null;
             $this->fetchUserData($deferred);
@@ -255,9 +290,19 @@ class MessageInfo
         $this->_isRPChannel = false;
         $this->_channel = null;
 
+        $channel = $this->_message->channel;
+        
+        if ($channel instanceof Thread) {
+            $this->_isThread = true;
+            $this->_thread = $channel;
+            $channel = $channel->parent;            
+        } else {
+            $this->_isThread = false;
+        }
+
         $that = $this;
         Channel::fetchSingleByQuery(array(
-            'id' => $this->_message->channel->id,
+            'id' => $channel->id,
             'guild_id' => $this->_guild->getId()
         ), false)->then(
             function (?Channel $channel) use ($that, $deferred) {
@@ -288,7 +333,12 @@ class MessageInfo
      */
     private function fetchChannelWebhookData(Deferred $deferred, Channel $channel)
     {
-        $discordChannel = $this->_message->channel;
+        if (!is_null($this->thread)) {
+            $discordChannel = $this->thread->parent;
+        } else {
+            $discordChannel = $this->_message->channel;
+        }
+        
         if (!($discordChannel instanceof TextChannel)) {
             $this->fetchUserData($deferred);
             return;
@@ -320,7 +370,7 @@ class MessageInfo
                 }
             }
         );
-    }
+    }    
 
     /**
      * Fetches data relevant to the current user.
@@ -330,6 +380,8 @@ class MessageInfo
      */
     private function fetchUserData(Deferred $deferred)
     {
+        $this->_isRPThread = ($this->_isThread && $this->_isRPChannel && !is_null($this->_channel) && $this->_channel->getUseSubThreads());
+
         $that = $this;
         User::fetchSingleByQuery(array(
             'id' => $this->_message->author->id,
@@ -352,8 +404,13 @@ class MessageInfo
     private function fetchCachedMessage(Deferred $deferred)
     {
         if (!is_null($this->_user) && !is_null($this->_channel)) {
-            $this->_lastSubmittedMessage = 
-                MessageCache::findLastUserMessage($this->_user->getId(), $this->_channel->getId());
+            if ($this->isRPThread) {
+                $this->_lastSubmittedMessage = 
+                    MessageCache::findLastUserMessage($this->_user->getId(), $this->_thread->id);
+            } else {
+                $this->_lastSubmittedMessage = 
+                    MessageCache::findLastUserMessage($this->_user->getId(), $this->_channel->getId());
+            }            
         } else {
             $this->_lastSubmittedMessage = null;
         }
@@ -411,8 +468,15 @@ class MessageInfo
                 $this->fetchDefaultCharacterForGuild($deferred);
                 break;
             case Guild::RPCHAR_SETTING_CHANNEL:
-            default:
                 $this->fetchDefaultCharacterForChannel($deferred);
+                break;
+            case Guild::RPCHAR_SETTING_THREAD:
+            default:
+                if ($this->_isRPThread) {
+                    $this->fetchDefaultCharacterForThread($deferred);
+                } else {
+                    $this->fetchDefaultCharacterForChannel($deferred);
+                }                
                 break;
         }
     }
@@ -438,7 +502,7 @@ class MessageInfo
     }
 
     /**
-     * Fetches the default character for the selected guild.
+     * Fetches the default character for the current channel.
      *
      * @param Deferred $deferred
      * @return void
@@ -457,6 +521,31 @@ class MessageInfo
         ))->then(
                 function (ChannelUser $channelUser) use ($that, $deferred) {
                     $that->_characterDefaultSettings = $channelUser;
+                    $that->fetchSelectedCharacter($deferred);
+                }
+            );
+    }
+
+    /**
+     * Fetches the default character for the current thread.
+     *
+     * @param Deferred $deferred
+     * @return void
+     */
+    private function fetchDefaultCharacterForThread(Deferred $deferred)
+    {
+        if(is_null($this->_thread)) {
+            $this->resolveDeferred($deferred);
+            return;
+        }
+
+        $that = $this;
+        ThreadUser::fetchSingleByQuery(array(            
+            'user_id' => $this->_user->getId(), 
+            'thread_id' => $this->_thread->id
+        ))->then(
+                function (ThreadUser $threadUser) use ($that, $deferred) {
+                    $that->_characterDefaultSettings = $threadUser;
                     $that->fetchSelectedCharacter($deferred);
                 }
             );

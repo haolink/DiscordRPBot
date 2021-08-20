@@ -17,7 +17,14 @@ class SetupCommand extends GuildCommand
      *
      * @var array
      */
-    protected static $REQUIRED_CHANNEL_PERMISSIONS = array('manage_webhooks', 'manage_messages', 'use_public_threads');
+    protected static $REQUIRED_CHANNEL_PERMISSIONS = array('manage_webhooks', 'manage_messages');
+
+    /**
+     * Depending on parameters the bot might require this permission.
+     *
+     * @var array
+     */
+    protected static $OPTIONAL_CHANNEL_PERMISSIONS = array('use_public_threads');
 
     /**
      * User executing this command requires the following permissions.
@@ -41,6 +48,38 @@ class SetupCommand extends GuildCommand
             return $this->replyDM('This command cannot be used in a thread!');
         }
 
+        $words = $this->getMessageWords();
+
+        if(count($words) < 1) {
+            return $this->sendSelfDeletingReply('Usage: ' . $this->messageInfo->mainPrefix . 'setup [channel/thread]');
+        }
+
+        $setupWay = mb_strtolower($words[0]);
+
+        if (!in_array($setupWay, array('channel', 'channels', 'thread', 'threads'))) {
+            return $this->sendSelfDeletingReply('Usage: ' . $this->messageInfo->mainPrefix . 'setup [channel/thread]');
+        }
+
+        $useSubThreads = false;
+        
+        switch ($setupWay) {
+            case 'thread':
+            case 'threads':
+                $useSubThreads = true;
+                break;
+            case 'channel':
+            case 'channels':
+            default:
+                $useSubThreads = false;
+                break;
+        }
+
+        if ($useSubThreads) {
+            if (!$this->getOptionalPermissionAvailable('use_public_threads')) {
+                return $this->replyDM('To set this up for threaded RPs, you must give the permission use_public_threads to the bot!');
+            }
+        }
+
         $deferred = new Deferred();
         $that = $this;
 
@@ -55,12 +94,21 @@ class SetupCommand extends GuildCommand
         ));
 
         $inputMessage = $that->messageInfo->message;
-        $textChannel->webhooks->save($webhook)->then(function(Webhook $webhook) use ($that, $deferred, $textChannel, $inputMessage) {
-            $channel = Channel::registerRpChannel($textChannel->id, $webhook->id, $that->messageInfo->guild->getId());
-            $that->sendSelfDeletingReply('The channel has been registered for RPing!')->then(function() use($deferred, $that, $inputMessage) {
-                $inputMessage->delete()->done();
-                $deferred->resolve();
-            });
+        $textChannel->webhooks->save($webhook)->then(function(Webhook $webhook) use ($that, $deferred, $textChannel, $inputMessage, $useSubThreads) {
+            $channel = Channel::registerRpChannel($textChannel->id, $webhook->id, $that->messageInfo->guild->getId(), true, $useSubThreads);
+            
+            if ($useSubThreads) {
+                $that->reply('The channel has been registered for RPing using threads! Please just type in the name of an adventure and it will be turned into a thread.')->then(function() use($deferred, $that, $inputMessage) {
+                    $inputMessage->delete()->done();
+                    $deferred->resolve();
+                });
+            } else {
+                $that->sendSelfDeletingReply('The channel has been registered for RPing!')->then(function() use($deferred, $that, $inputMessage) {
+                    $inputMessage->delete()->done();
+                    $deferred->resolve();
+                });
+            }
+
         }, function($error) use($that, $deferred) {
             $that->reply('Something went wrong here!')->then(function() use($deferred) {
                 $deferred->resolve();

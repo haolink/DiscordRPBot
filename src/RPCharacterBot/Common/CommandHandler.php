@@ -161,6 +161,46 @@ abstract class CommandHandler
     }
 
     /**
+     * Stores the availability of optional permissions.
+     *
+     * @var array
+     */
+    private $availableOptionalPermissions = array();
+
+    /**
+     * Sets an optional permission.
+     *
+     * @param string $permission
+     * @param boolean $permissionValue
+     * @return void
+     */
+    private function setOptionalPermissionAvailable($permission, $permissionValue) {
+        if (!is_array($this->availableOptionalPermissions)) {
+            $this->availableOptionalPermissions = array();
+        }
+
+        $this->availableOptionalPermissions[$permission] = $permissionValue;
+    }
+
+    /**
+     * Checks if an optional permission is available.
+     *
+     * @param string $permission
+     * @return void
+     */
+    protected function getOptionalPermissionAvailable($permission) {
+        if (!is_array($this->availableOptionalPermissions)) {
+            $this->availableOptionalPermissions = array();
+        }
+
+        if (!array_key_exists($permission, $this->availableOptionalPermissions)) {
+            return false;
+        }
+
+        return $this->availableOptionalPermissions[$permission];
+    }
+
+    /**
      * Channel permissions are available.
      *
      * @param Deferred $deferred
@@ -175,15 +215,17 @@ abstract class CommandHandler
         /**
          * Check if the user has the required permissions to run this command.
          */
-        if (property_exists($class, 'REQUIRED_CHANNEL_PERMISSIONS') && 
+        if ((property_exists($class, 'REQUIRED_CHANNEL_PERMISSIONS') || property_exists($class, 'OPTIONAL_CHANNEL_PERMISSIONS')) && 
            (!$this->messageInfo->isDM) && ($textChannel->type == Channel::TYPE_TEXT) &&
            is_array($class::$REQUIRED_CHANNEL_PERMISSIONS) && (count($class::$REQUIRED_CHANNEL_PERMISSIONS) > 0)) {
             /** @var Channel $textChannel */
             /** @var array $requiredPermissions */
-            $requiredPermissions = $class::$REQUIRED_CHANNEL_PERMISSIONS;            
+            /** @var array $optionalPermissions */
+            $requiredPermissions = property_exists($class, 'REQUIRED_CHANNEL_PERMISSIONS') ? ($class::$REQUIRED_CHANNEL_PERMISSIONS):array(); 
+            $optionalPermissions = property_exists($class, 'OPTIONAL_CHANNEL_PERMISSIONS') ? ($class::$OPTIONAL_CHANNEL_PERMISSIONS):array(); 
             
             $this->messageInfo->message->channel->guild->members->fetch($this->client->user->id)->
-                    then(function(Member $gm) use ($that, $deferred, $textChannel, $requiredPermissions) {
+                    then(function(Member $gm) use ($that, $deferred, $textChannel, $requiredPermissions, $optionalPermissions) {
                 $permissions = $gm->getPermissions($textChannel);
                 $matched = true;
                 foreach(RolePermission::getPermissions() as $permString => $permNumber) {
@@ -192,6 +234,10 @@ abstract class CommandHandler
                             $matched = false;
                             break;
                         }
+                    }
+
+                    if (in_array($permString, $optionalPermissions)) {
+                        $that->setOptionalPermissionAvailable($permString, $permissions->{$permString});                        
                     }
                 }
 
@@ -394,5 +440,5 @@ abstract class CommandHandler
         });
 
         return $deferred->promise();
-    }
+    }    
 }

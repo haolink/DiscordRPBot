@@ -25,13 +25,13 @@ class CharsettingCommand extends GuildCommand
         $words = $this->getMessageWords();
 
         if(count($words) < 1) {
-            return $this->sendSelfDeletingReply('Usage: ' . $this->messageInfo->mainPrefix . 'charsetting [server/channel]');
+            return $this->sendSelfDeletingReply('Usage: ' . $this->messageInfo->mainPrefix . 'charsetting [server/channel/thread]');
         }
 
         $firstWord = mb_strtolower($words[0]);
 
-        if (!in_array($firstWord, array('server', 'channel', 'guild'))) {
-            return $this->sendSelfDeletingReply('Usage: ' . $this->messageInfo->mainPrefix . 'charsetting [server/channel]');
+        if (!in_array($firstWord, array('server', 'channel', 'guild', 'thread'))) {
+            return $this->sendSelfDeletingReply('Usage: ' . $this->messageInfo->mainPrefix . 'charsetting [server/channel/thread]');
         }
         
         $newSetting = Guild::RPCHAR_SETTING_CHANNEL;
@@ -41,8 +41,11 @@ class CharsettingCommand extends GuildCommand
                 $newSetting = Guild::RPCHAR_SETTING_GUILD;
                 break;
             case 'channel':
-            default:
                 $newSetting = Guild::RPCHAR_SETTING_CHANNEL;
+                break;
+            case 'thread':
+            default:
+                $newSetting = Guild::RPCHAR_SETTING_THREAD;
                 break;
         }
 
@@ -50,6 +53,9 @@ class CharsettingCommand extends GuildCommand
         switch ($newSetting) {
             case Guild::RPCHAR_SETTING_GUILD:
                 $newSettingName = 'server';
+                break;
+            case Guild::RPCHAR_SETTING_THREAD:
+                $newSettingName = 'thread (with channel fallback)';
                 break;
             case Guild::RPCHAR_SETTING_CHANNEL:
             default:

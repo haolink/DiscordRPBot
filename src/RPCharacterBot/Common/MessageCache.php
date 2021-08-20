@@ -3,6 +3,7 @@
 namespace RPCharacterBot\Common;
 
 use Discord\Parts\Channel\Message;
+use Discord\Parts\Thread\Thread;
 
 class MessageCache
 {
@@ -233,7 +234,7 @@ class MessageCache
         }
 
         if (!array_key_exists($channelId, $cache->cachedData[$userId])) {
-            $cache->cachedData[$userId] = null;
+            $cache->cachedData[$userId][$channelId] = null;
         }
 
         $cache->cachedData[$userId][$channelId] = $message;
