@@ -1,6 +1,6 @@
 {
     "require": {
-        "team-reflex/discord-php": "dev-master",
+        "team-reflex/discord-php": "dev-develop",
         "react/mysql": "^0.5.4",
         "cboden/ratchet": "0.4.*"
     },

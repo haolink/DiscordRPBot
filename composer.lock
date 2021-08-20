@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "fc89c9140c613304b3b2a16c812c4ca0",
+    "content-hash": "d2744d7e23e7d68780c8509d55560bf3",
     "packages": [
         {
             "name": "cboden/ratchet",
@@ -70,7 +70,7 @@
         },
         {
             "name": "discord-php/http",
-            "version": "v8.1.2",
+            "version": "v9.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/discord-php/DiscordPHP-Http.git",
@@ -114,6 +114,55 @@
                 "source": "https://github.com/discord-php/DiscordPHP-Http/tree/v9.0.3"
             },
             "time": "2021-07-02T23:39:34+00:00"
+        },
+        {
+            "name": "discord/interactions",
+            "version": "2.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/discord/discord-interactions-php.git",
+                "reference": "1bf164dd73ea7d687c3fff4d253c29b0b32721f4"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/discord/discord-interactions-php/zipball/1bf164dd73ea7d687c3fff4d253c29b0b32721f4",
+                "reference": "1bf164dd73ea7d687c3fff4d253c29b0b32721f4",
+                "shasum": ""
+            },
+            "conflict": {
+                "simplito/elliptic-php": "<1.0,>=1.1"
+            },
+            "require-dev": {
+                "simplito/elliptic-php": "^1.0"
+            },
+            "suggest": {
+                "simplito/elliptic-php": "Required to validate interaction signatures."
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Discord\\": "discord"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Ian Webster",
+                    "email": "ianw_php@ianww.com"
+                }
+            ],
+            "description": "Utils for implementing the Discord Interactions API",
+            "keywords": [
+                "discord"
+            ],
+            "support": {
+                "issues": "https://github.com/discord/discord-interactions-php/issues",
+                "source": "https://github.com/discord/discord-interactions-php/tree/2.0.0"
+            },
+            "time": "2021-06-23T14:54:24+00:00"
         },
         {
             "name": "evenement/evenement",
@@ -2427,20 +2476,21 @@
         },
         {
             "name": "team-reflex/discord-php",
-            "version": "dev-master",
+            "version": "dev-develop",
             "source": {
                 "type": "git",
                 "url": "https://github.com/discord-php/DiscordPHP.git",
-                "reference": "8e9cbf993826d0e00c30bd6cb5be931346eb79f5"
+                "reference": "40d4e47ccd58f5b4d5b5267bd45102518599768d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/8e9cbf993826d0e00c30bd6cb5be931346eb79f5",
-                "reference": "8e9cbf993826d0e00c30bd6cb5be931346eb79f5",
+                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/40d4e47ccd58f5b4d5b5267bd45102518599768d",
+                "reference": "40d4e47ccd58f5b4d5b5267bd45102518599768d",
                 "shasum": ""
             },
             "require": {
-                "discord-php/http": "^8",
+                "discord-php/http": "^9",
+                "discord/interactions": "^2",
                 "ext-json": "*",
                 "ext-zlib": "*",
                 "mollie/polyfill-libsodium": "^1.1",
@@ -2457,7 +2507,7 @@
             },
             "require-dev": {
                 "davidcole1340/reactsh": "dev-master",
-                "friendsofphp/php-cs-fixer": "^2.16",
+                "friendsofphp/php-cs-fixer": "^3",
                 "phpunit/phpunit": "^9.4",
                 "symfony/var-dumper": "*"
             },
@@ -2467,7 +2517,6 @@
                 "ext-mbstring": "For accurate calculations of string length when handling non-english characters.",
                 "ext-uv": "For a faster, and more performant loop. Preferred."
             },
-            "default-branch": true,
             "type": "library",
             "autoload": {
                 "files": [
@@ -2490,9 +2539,9 @@
             "description": "An unofficial API to interact with the voice and text service Discord.",
             "support": {
                 "issues": "https://github.com/discord-php/DiscordPHP/issues",
-                "source": "https://github.com/discord-php/DiscordPHP/tree/master"
+                "source": "https://github.com/discord-php/DiscordPHP/tree/develop"
             },
-            "time": "2021-08-14T11:04:11+00:00"
+            "time": "2021-08-14T12:25:04+00:00"
         },
         {
             "name": "trafficcophp/bytebuffer",

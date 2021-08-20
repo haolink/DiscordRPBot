@@ -4,6 +4,7 @@ namespace RPCharacterBot\Commands\Guild;
 
 use Discord\Parts\Channel\Webhook;
 use Discord\Parts\Channel\Channel as DiscordChannel;
+use Discord\Parts\Thread\Thread;
 use React\Promise\Deferred;
 use RPCharacterBot\Commands\GuildCommand;
 use React\Promise\ExtendedPromiseInterface;
@@ -16,7 +17,7 @@ class SetupCommand extends GuildCommand
      *
      * @var array
      */
-    protected static $REQUIRED_CHANNEL_PERMISSIONS = array('manage_webhooks', 'manage_messages');
+    protected static $REQUIRED_CHANNEL_PERMISSIONS = array('manage_webhooks', 'manage_messages', 'use_public_threads');
 
     /**
      * User executing this command requires the following permissions.
@@ -34,6 +35,10 @@ class SetupCommand extends GuildCommand
     {
         if ($this->messageInfo->isRPChannel) {
             return $this->replyDM('This channel already is an RP channel!');            
+        }
+
+        if ($this->messageInfo->message->channel instanceof Thread) {
+            return $this->replyDM('This command cannot be used in a thread!');
         }
 
         $deferred = new Deferred();

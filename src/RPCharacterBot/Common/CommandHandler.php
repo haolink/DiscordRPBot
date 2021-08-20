@@ -387,9 +387,7 @@ abstract class CommandHandler
 
         $this->reply($messageText)->then(function(Message $message) use ($deferred, $timeout) {
             $messageToDelete = $message;
-            echo "Mark for delete: " . $messageToDelete->id . PHP_EOL;
             $this->loop->addTimer($timeout, function() use ($messageToDelete) {
-                echo "Will delete: " . $messageToDelete->id . PHP_EOL;
                 $messageToDelete->delete()->done();
             });
             $deferred->resolve();
