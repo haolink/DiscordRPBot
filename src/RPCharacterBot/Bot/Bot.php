@@ -87,6 +87,13 @@ class Bot
     private $connected;
 
     /**
+     * Last message for thread checks.
+     *
+     * @var Message
+     */
+    private $lastMessage;
+
+    /**
      * Retrieves the bot instance.
      *
      * @return Bot|null
@@ -172,6 +179,8 @@ class Bot
     {        
         $this->client->on(Event::MESSAGE_CREATE, \Closure::fromCallable(array($this, 'onClientMessage')));
         $this->client->on(Event::THREAD_CREATE, \Closure::fromCallable(array($this, 'onNewGuildThread')));        
+        $this->client->on(Event::THREAD_UPDATE, \Closure::fromCallable(array($this, 'onThreadUpdate')));        
+        $this->client->on(Event::THREAD_LIST_SYNC, \Closure::fromCallable(array($this, 'onThreadUpdate')));        
 
         $this->output->writeln('Logged in as ' . $this->client->user->username . ' created on ' . 
             date('d.m.Y H:i:s', $this->client->user->createdTimestamp()));
@@ -289,7 +298,11 @@ class Bot
             }
         }        
         
-        MessageInfo::parseMessage($this, $message)->then(function(MessageInfo $messageInfo) use($that) {
+        $this->lastMessage = $message;
+        MessageInfo::parseMessage($this, $message)->then(function(MessageInfo $messageInfo) use($that, $message) {
+            if ($message->channel->type != DiscordChannel::TYPE_DM) {
+                $that->lastMessage = null; //Message might be misidentifed as DM type.
+            }
             $that->messageDataAvailable($messageInfo);
         });
     }
@@ -580,6 +593,24 @@ class Bot
      */
     private function onNewGuildThread(Thread $thread) {
         ThreadHelper::onNewThread($thread, $this->client);
+    }
+
+    /**
+     * Checks for new threads.
+     *
+     * @param Thread $thread
+     * @return void
+     */
+    private function onThreadUpdate(Thread $thread) {
+        if (!is_null($this->lastMessage)) {
+            if ($this->lastMessage->channel_id == $thread->id) {
+                //The thread wasn't updated at the time of the message event.
+                //Rehandle the message now that we know it was a thread message.
+                $this->onClientMessage($this->lastMessage, $this->client); 
+            }
+        }
+
+        ThreadHelper::onThreadedRpChannelCreated($thread->parent, $this->client);
     }
 
     /**
