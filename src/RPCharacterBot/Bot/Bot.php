@@ -147,7 +147,7 @@ class Bot
     }
 
     /**
-     * Undocumented function
+     * When Ctrl-C has been received (UNIX hosts only, does not work on Windows).
      *
      * @return void
      */
@@ -440,7 +440,7 @@ class Bot
     }
 
     /**
-     * Undocumented function
+     * Has the message sent been a ping to me?
      *
      * @param string $word
      * @param Guild $guild
