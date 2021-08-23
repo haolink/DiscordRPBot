@@ -89,6 +89,17 @@ class SocketServer implements MessageComponentInterface
     }
 
     /**
+     * Message to test the websocket functionality.
+     *
+     * @param string $text
+     * @return void
+     */
+    private function parse_test($text)
+    {
+        $this->bot->writeln('Received text via websocket: ' . $text);
+    }
+
+    /**
      * Forces a clearing of the cache of the user with the given ID.
      *
      * @param string $userId
@@ -99,7 +110,7 @@ class SocketServer implements MessageComponentInterface
         $this->bot->writeln('Received cache refresh for user ' . $userId);
         Character::uncacheByUserId($userId);
         GuildUser::uncacheByUserId($userId);
-        ChannelUser::uncacheByUserId($userId);
+        ChannelUser::uncacheByUserId($userId);        
         ThreadUser::uncacheByUserId($userId);
         User::uncacheById($userId);
     }
