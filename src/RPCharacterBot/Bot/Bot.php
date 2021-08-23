@@ -124,7 +124,7 @@ class Bot
         $this->token = $config['discord_token'];
 
         $this->client = new Discord(array(
-            'loop' => $loop,
+            'loop' => $loop,            
             'token' => $this->token
         ));
         $this->client->on('error', \Closure::fromCallable(array($this, 'onClientError')));
@@ -180,7 +180,6 @@ class Bot
         $this->client->on(Event::MESSAGE_CREATE, \Closure::fromCallable(array($this, 'onClientMessage')));
         $this->client->on(Event::THREAD_CREATE, \Closure::fromCallable(array($this, 'onNewGuildThread')));        
         $this->client->on(Event::THREAD_UPDATE, \Closure::fromCallable(array($this, 'onThreadUpdate')));        
-        $this->client->on(Event::THREAD_LIST_SYNC, \Closure::fromCallable(array($this, 'onThreadUpdate')));        
 
         $this->output->writeln('Logged in as ' . $this->client->user->username . ' created on ' . 
             date('d.m.Y H:i:s', $this->client->user->createdTimestamp()));
