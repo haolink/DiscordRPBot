@@ -1,6 +1,6 @@
 {
     "require": {
-        "team-reflex/discord-php": "dev-develop",
+        "team-reflex/discord-php": "dev-threadfix",
         "react/mysql": "^0.5.4",
         "cboden/ratchet": "0.4.*"
     },
@@ -8,5 +8,11 @@
         "psr-4": {
             "RPCharacterBot\\": "src/RPCharacterBot/"
         }
-    }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/haolink/DiscordPHP"
+        }
+    ]
 }

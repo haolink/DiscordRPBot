@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d2744d7e23e7d68780c8509d55560bf3",
+    "content-hash": "40030dd1895eed1bd405b455504d0b28",
     "packages": [
         {
             "name": "cboden/ratchet",
@@ -431,16 +431,16 @@
         },
         {
             "name": "nesbot/carbon",
-            "version": "2.51.1",
+            "version": "2.52.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/briannesbitt/Carbon.git",
-                "reference": "8619c299d1e0d4b344e1f98ca07a1ce2cfbf1922"
+                "reference": "369c0e2737c56a0f39c946dd261855255a6fccbe"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/briannesbitt/Carbon/zipball/8619c299d1e0d4b344e1f98ca07a1ce2cfbf1922",
-                "reference": "8619c299d1e0d4b344e1f98ca07a1ce2cfbf1922",
+                "url": "https://api.github.com/repos/briannesbitt/Carbon/zipball/369c0e2737c56a0f39c946dd261855255a6fccbe",
+                "reference": "369c0e2737c56a0f39c946dd261855255a6fccbe",
                 "shasum": ""
             },
             "require": {
@@ -521,7 +521,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2021-07-28T13:16:28+00:00"
+            "time": "2021-08-14T19:10:52+00:00"
         },
         {
             "name": "psr/http-message",
@@ -2476,16 +2476,16 @@
         },
         {
             "name": "team-reflex/discord-php",
-            "version": "dev-develop",
+            "version": "dev-threadfix",
             "source": {
                 "type": "git",
-                "url": "https://github.com/discord-php/DiscordPHP.git",
-                "reference": "40d4e47ccd58f5b4d5b5267bd45102518599768d"
+                "url": "https://github.com/haolink/DiscordPHP.git",
+                "reference": "bb7c5d42e8255506ff692259e74f3077d8991d33"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/40d4e47ccd58f5b4d5b5267bd45102518599768d",
-                "reference": "40d4e47ccd58f5b4d5b5267bd45102518599768d",
+                "url": "https://api.github.com/repos/haolink/DiscordPHP/zipball/bb7c5d42e8255506ff692259e74f3077d8991d33",
+                "reference": "bb7c5d42e8255506ff692259e74f3077d8991d33",
                 "shasum": ""
             },
             "require": {
@@ -2526,7 +2526,17 @@
                     "Discord\\": "src/Discord"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
+            "scripts": {
+                "cs": [
+                    "./vendor/bin/php-cs-fixer fix"
+                ],
+                "unit": [
+                    "./vendor/bin/phpunit --testdox"
+                ],
+                "coverage": [
+                    "XDEBUG_MODE=coverage ./vendor/bin/phpunit --coverage-html coverage --testdox"
+                ]
+            },
             "license": [
                 "MIT"
             ],
@@ -2538,10 +2548,9 @@
             ],
             "description": "An unofficial API to interact with the voice and text service Discord.",
             "support": {
-                "issues": "https://github.com/discord-php/DiscordPHP/issues",
-                "source": "https://github.com/discord-php/DiscordPHP/tree/develop"
+                "source": "https://github.com/haolink/DiscordPHP/tree/threadfix"
             },
-            "time": "2021-08-14T12:25:04+00:00"
+            "time": "2021-08-23T06:34:04+00:00"
         },
         {
             "name": "trafficcophp/bytebuffer",
