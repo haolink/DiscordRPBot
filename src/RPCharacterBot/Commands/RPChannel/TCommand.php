@@ -4,15 +4,16 @@ namespace RPCharacterBot\Commands\RPChannel;
 
 use RPCharacterBot\Commands\RPCCommand;
 use React\Promise\ExtendedPromiseInterface;
+use RPCharacterBot\Common\Interfaces\StackableCommand;
 
-class TCommand extends RPCCommand
+class TCommand extends RPCCommand implements StackableCommand
 {
     protected function handleCommandInternal(): ?ExtendedPromiseInterface
     {
         $words = $this->getMessageWords();
 
         if(count($words) < 2) {
-            return $this->replyDM('Usage: ..t [shortcut] [message]');
+            return $this->replyDM('Usage: ' . $this->messageInfo->quickPrefix . 't [shortcut] [message]');
         }
 
         $shortCut = strtolower($words[0]);                

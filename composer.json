@@ -1,6 +1,6 @@
 {
     "require": {
-        "team-reflex/discord-php": "dev-threadfix",
+        "team-reflex/discord-php": "^v7.3",
         "react/mysql": "^0.5.4",
         "cboden/ratchet": "0.4.*"
     },
@@ -9,10 +9,9 @@
             "RPCharacterBot\\": "src/RPCharacterBot/"
         }
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/haolink/DiscordPHP"
+    "config": {
+        "allow-plugins": {
+            "wyrihaximus/composer-update-bin-autoload-path": true
         }
-    ]
+    }
 }

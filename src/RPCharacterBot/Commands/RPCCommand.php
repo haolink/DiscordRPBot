@@ -52,7 +52,7 @@ abstract class RPCCommand extends CommandHandler
             $content = '';
         }
 
-        $options = array(
+        $data = array(
             'username' => $character->getCharacterName()
         );
 
@@ -63,28 +63,28 @@ abstract class RPCCommand extends CommandHandler
                 $avatar = $this->bot->getConfig('avatar_url') . $avatar;
             }
 
-            $options['avatar_url'] = $avatar;
+            $data['avatar_url'] = $avatar;
         } 
 
         if (count($files) > 0) {
-            $options['embeds'] = $files;
+            $data['embeds'] = $files;
         } elseif (empty($content))         {
             return null;
         }
 
-        $options['content'] = $content ?? 'Empty';
+        $data['content'] = $content ?? 'Empty';
 
         MessageCache::submitToWebHook($this->messageInfo->user->getId(), $this->messageInfo->message->channel->id,
             $character->getCharacterName(), $content);
 
         $deferred = new Deferred();
         
-        $threadId = null;
+        $options = array();
         if ($this->messageInfo->isRPThread) {
-            $threadId = $this->messageInfo->thread->id;
+            $options['thread_id'] = $this->messageInfo->thread->id;
         }
 
-        $this->messageInfo->webhook->execute($options, $threadId)->then(function () use ($message, $deferred) {
+        $this->messageInfo->webhook->execute($data, $options)->then(function () use ($message, $deferred) {
             //$message->delete()->then(function () use($deferred) {
                 $deferred->resolve();
             //});

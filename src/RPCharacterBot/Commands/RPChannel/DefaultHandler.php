@@ -7,9 +7,10 @@ use React\Promise\Deferred;
 use RPCharacterBot\Commands\RPCCommand;
 use RPCharacterBot\Common\MessageInfo;
 use React\Promise\ExtendedPromiseInterface;
+use RPCharacterBot\Common\Interfaces\StackableCommand;
 use RPCharacterBot\Common\MessageCache;
 
-class DefaultHandler extends RPCCommand
+class DefaultHandler extends RPCCommand implements StackableCommand
 {
     /**
      * Default handler can be directly initiated.

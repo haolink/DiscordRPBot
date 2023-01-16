@@ -10,6 +10,7 @@ use Discord\Parts\Channel\Message;
 use Discord\Parts\Guild\Guild as DiscordGuild;
 use Discord\Parts\Thread\Thread;
 use Discord\WebSockets\Event;
+use Discord\WebSockets\Intents;
 use Ratchet\Http\HttpServer;
 use Ratchet\Server\IoServer;
 use Ratchet\WebSocket\WsServer;
@@ -20,10 +21,12 @@ use RPCharacterBot\Commands\GuildCommand;
 use RPCharacterBot\Commands\RPCCommand;
 use RPCharacterBot\Commands\RPChannel\DefaultHandler;
 use RPCharacterBot\Commands\RPChannel\OOCHandler;
+use RPCharacterBot\Common\Helpers\BotHelper;
 use RPCharacterBot\Common\Helpers\ThreadHelper;
 use RPCharacterBot\Common\Log\ConsoleOutput;
 use RPCharacterBot\Common\MessageCache;
 use RPCharacterBot\Common\MessageInfo;
+use RPCharacterBot\Common\MultiMessage\MessageContainer;
 use RPCharacterBot\Exception\BotException;
 use RPCharacterBot\Interfaces\OutputLogInterface;
 use RPCharacterBot\Model\Guild;
@@ -122,10 +125,11 @@ class Bot
         $this->loop = $loop;
         $this->config = $config;
         $this->token = $config['discord_token'];
-
+        
         $this->client = new Discord(array(
             'loop' => $loop,            
-            'token' => $this->token
+            'token' => $this->token,
+            'intents' => Intents::getDefaultIntents() | Intents::MESSAGE_CONTENT,
         ));
         $this->client->on('error', \Closure::fromCallable(array($this, 'onClientError')));
         $this->client->on('ready', \Closure::fromCallable(array($this, 'onClientReady')));        
@@ -182,7 +186,7 @@ class Bot
         $this->client->on(Event::THREAD_UPDATE, \Closure::fromCallable(array($this, 'onThreadUpdate')));        
 
         $this->output->writeln('Logged in as ' . $this->client->user->username . ' created on ' . 
-            date('d.m.Y H:i:s', $this->client->user->createdTimestamp()));
+            date('d.m.Y H:i:s', floor($this->client->user->createdTimestamp())));
     }
 
     /**
@@ -287,11 +291,11 @@ class Bot
         $that = $this;
 
         if ($message->channel->type != DiscordChannel::TYPE_DM) {
-            if (!is_null($message->author->user) && $message->author->user->bot) { //is by a bot
+            if (!is_null($message->author) && $message->author->bot) { //is by a bot
                 return;
             }
     
-            if ($message->author->user == null) {
+            if ($message->author == null) {
                 MessageCache::identifyBotMessage($message);
                 return;
             }
@@ -335,13 +339,13 @@ class Bot
             }
 
             if (!(!is_null($info->thread) xor $info->channel->getUseSubThreads())) {
-                if ($this->handleRPChannelCommand($info)) {
-                    return;
-                }
                 if ($this->handleRPChannelOoc($info)) {
                     return;
                 }                
-                $this->handleRPChannelMessage($info);
+                if ($this->handleRPChannelCommand($info)) {
+                    return;
+                }
+                //$this->handleRPChannelMessage($info);
             }       
         } else {
             if ($this->handleGuildCommand($info)) {
@@ -375,31 +379,8 @@ class Bot
         return false;
     }
 
-    /**
-     * Extracts a prefixed command.
-     *
-     * @param string $text
-     * @param string $prefix
-     * @return string|null
-     */
-    private function extractCommandName($text, $prefix) : ?string
-    {
-        $prefixLength = mb_strlen($prefix);
-        $wordLength = mb_strlen($text);
-
-        if ($prefixLength >= $wordLength) {
-            return null;
-        }
-
-        $firstLetters = mb_substr($text, 0, $prefixLength);
-
-        if ($firstLetters == $prefix) {
-            return mb_substr($text, $prefixLength);
-        } else {
-            return null;
-        }
-    }
-
+    
+    
     /**
      * Handles messages within an RP channel.
      *
@@ -408,14 +389,17 @@ class Bot
      */
     private function handleRPChannelCommand(MessageInfo $info, bool $onlyCheckAvailability = false)
     {
+        $container = MessageContainer::parseMessage($info);
+
         $messageText = $info->message->content ?? '';
+
         $words = explode(' ', $messageText);
         if (count($words) == 0) {
             return false;
         }
 
         $firstWord = $words[0];
-        $commandName = $this->extractCommandName($firstWord, $info->quickPrefix);
+        $commandName = BotHelper::extractCommandName($firstWord, $info->quickPrefix);
 
         if (is_null($commandName)) {
             return false;
@@ -516,7 +500,7 @@ class Bot
             $commandName = $words[1];
             $commandAttachment = 'Ping';
         } else {
-            $commandName = $this->extractCommandName($firstWord, $info->mainPrefix);
+            $commandName = BotHelper::extractCommandName($firstWord, $info->mainPrefix);
         }        
 
         if (is_null($commandName)) {
@@ -546,7 +530,7 @@ class Bot
 
         $messageText = $info->message->content ?? '';
         
-        $cmd = $this->extractCommandName($messageText, $info->oocSequence);
+        $cmd = BotHelper::extractCommandName($messageText, $info->oocSequence);
 
         $matchBrackets = preg_match('/^(\[(.*)\]|\((.*)\)|\{(.*)\})$/us', $messageText);
 

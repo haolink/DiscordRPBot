@@ -246,7 +246,7 @@ abstract class BaseModel
     /**
      * Applies an update to a model.
      *
-     * @return void
+     * @return PromiseInterface
      */
     protected function applyUpdate() : PromiseInterface
     {

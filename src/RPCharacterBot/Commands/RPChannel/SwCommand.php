@@ -4,8 +4,9 @@ namespace RPCharacterBot\Commands\RPChannel;
 
 use RPCharacterBot\Commands\RPCCommand;
 use React\Promise\ExtendedPromiseInterface;
+use RPCharacterBot\Common\Interfaces\StackableCommand;
 
-class SwCommand extends RPCCommand
+class SwCommand extends RPCCommand implements StackableCommand
 {
     protected function handleCommandInternal(): ?ExtendedPromiseInterface
     {
