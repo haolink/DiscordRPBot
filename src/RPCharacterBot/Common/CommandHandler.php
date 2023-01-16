@@ -372,7 +372,7 @@ abstract class CommandHandler
     public function getCommandString(string $prefix = '') : string {
         $className = get_class($this);
 
-        $parts = mb_split('\\', $className);
+        $parts = explode("\\", $className);
         $lastPart = $parts[count($parts) - 1];
 
         $cmd = strtolower($lastPart);
