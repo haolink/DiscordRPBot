@@ -15,7 +15,7 @@ class SwlastCommand extends RPCCommand
      */
     protected function handleCommandInternal(): ?ExtendedPromiseInterface
     {
-        if (is_null($this->messageInfo->lastSubmittedMessage)) {
+        if (is_null($this->messageInfo->lastSubmittedMessages)) {
             return null;            
         }
 
@@ -43,10 +43,10 @@ class SwlastCommand extends RPCCommand
 
         $deferred = new Deferred();
 
-        $oldMessage = $this->messageInfo->lastSubmittedMessage;
+        $oldMessage = $this->messageInfo->lastSubmittedMessages[count($this->messageInfo->lastSubmittedMessages) - 1];
 
         $oldMessage->delete()->then(function() use ($deferred, $oldMessage, $existingCharacter, $that) {
-            $that->resubmitMessageAsCharacter($oldMessage, $existingCharacter)->then(function() use ($deferred) {
+            $that->resubmitMessageAsCharacter($oldMessage, $existingCharacter, $oldMessage->content)->then(function() use ($deferred) {
                 $deferred->resolve();
             });
         });

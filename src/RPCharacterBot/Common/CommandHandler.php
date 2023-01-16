@@ -15,6 +15,7 @@ use Discord\Parts\Permissions\Permission;
 use Discord\Parts\Permissions\RolePermission;
 use React\EventLoop\LoopInterface;
 use RPCharacterBot\Model\Character;
+use Symfony\Component\OptionsResolver\OptionsResolver;
 
 abstract class CommandHandler
 {
@@ -52,6 +53,20 @@ abstract class CommandHandler
      * @var array
      */
     private static $commandClasses = array();
+
+    /**
+     * Message text to parse - if not set it will be used from the Message Info.
+     *
+     * @var string
+     */
+    protected $messageLine = null;
+
+    /**
+     * Whether to ignore attachments when replying.
+     *
+     * @var boolean
+     */
+    protected $ignoreAttachments = false;
     
     /**
      * Constructor.
@@ -110,8 +125,31 @@ abstract class CommandHandler
      *
      * @return PromiseInterface
      */
-    public function handleCommand() : ExtendedPromiseInterface
+    public function handleCommand(array $inputOptions = []) : ExtendedPromiseInterface
     {
+        $resolver = new OptionsResolver();
+
+        $resolver
+            ->setDefined([
+                'messageLine',
+                'ignoreAttachments'
+            ])
+            ->setDefaults([
+                'ignoreAttachments' => false,
+            ])
+            ->setAllowedTypes('ignoreAttachments', 'bool')
+            ->setAllowedTypes('messageLine', 'string');
+
+        $options = $resolver->resolve($inputOptions);
+
+        if (array_key_exists('messageLine', $options)) {
+            $this->messageLine = $options['messageLine'];
+        } else {
+            $this->messageLine = $this->messageInfo->message->content;
+        }
+        $this->ignoreAttachments = $options['ignoreAttachments'];
+
+
         $deferred = new Deferred();
         
         $that = $this;
@@ -327,6 +365,26 @@ abstract class CommandHandler
     }
 
     /**
+     * Gets the command text.
+     *
+     * @return string
+     */
+    public function getCommandString(string $prefix = '') : string {
+        $className = get_class($this);
+
+        $parts = mb_split('\\', $className);
+        $lastPart = $parts[count($parts) - 1];
+
+        $cmd = strtolower($lastPart);
+
+        if (substr($cmd, -7) == 'command') {
+            $cmd = substr($cmd, 0, mb_strlen($cmd) - 7);
+        }
+
+        return $prefix . $cmd;
+    }
+
+    /**
      * Replies to a message depending on the message type.
      *
      * @param string $message
@@ -385,9 +443,9 @@ abstract class CommandHandler
      * 
      * @return array
      */
-    protected function getMessageWords() : array
+    protected function getMessageWords(?string $messageContent = null) : array
     {
-        $messageParts = explode(' ', $this->messageInfo->message->content);
+        $messageParts = explode(' ', $messageContent ?? $this->messageLine ?? $this->messageInfo->message->content);
         if (count($messageParts) <= 1) {
             return [];
         }

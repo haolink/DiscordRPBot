@@ -23,21 +23,43 @@ class SwCommand extends RPCCommand implements StackableCommand
             return $this->replyDM('A character with the shortcut ' . $shortCut . ' doesn\'t exist.');
         }
 
-        if ($existingCharacter == $this->messageInfo->currentCharacter) {
-            return null; //No change??
-        }
-        
-        $this->messageInfo->characterDefaultSettings->setFormerCharacterId($this->messageInfo->currentCharacter->getId());
-        $this->messageInfo->characterDefaultSettings->setDefaultCharacterId($existingCharacter->getId());
+        if ($existingCharacter != $this->messageInfo->currentCharacter) {
+            $this->messageInfo->characterDefaultSettings->setFormerCharacterId($this->messageInfo->currentCharacter->getId());
+            $this->messageInfo->characterDefaultSettings->setDefaultCharacterId($existingCharacter->getId());
+        }            
 
-        if(count($words) > 1) {
+        if(count($words) > 1) {            
             unset($words[0]);
 
             $content = implode(' ', $words);
-            
+
             return $this->resubmitMessageAsCharacter($this->messageInfo->message, $existingCharacter, $content);
         } else {
             return null;
         }        
+    }
+
+    /**
+     * Verifies parameters for multi message mode.
+     *
+     * @param string $messageBody
+     * @return void
+     */
+    public function queryCallingError(string $messageBody) : ?string
+    {
+        $words = $this->getMessageWords($messageBody);
+
+        if(count($words) < 1) {
+            return 'Usage: ..sw [shortcut]';
+        }
+
+        $shortCut = strtolower($words[0]);                
+        $existingCharacter = $this->getCharacterByShortcut($shortCut);
+
+        if (is_null($existingCharacter)) {
+            return 'A character with the shortcut ' . $shortCut . ' doesn\'t exist.';
+        }
+
+        return null;
     }
 }

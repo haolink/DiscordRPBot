@@ -52,4 +52,26 @@ class DefaultHandler extends RPCCommand implements StackableCommand
 
         return $this->resubmitMessageAsCharacter($message, $this->messageInfo->currentCharacter);        
     }
+
+    /**
+     * Verifies parameters for multi message mode.
+     *
+     * @param string $messageBody
+     * @return void
+     */
+    public function queryCallingError(string $messageBody) : ?string
+    {
+        $info = $this->messageInfo;
+
+        if (is_null($info->webhook)) {
+            return null;
+        }        
+
+        if (is_null($this->messageInfo->currentCharacter)) {
+            return 'You don\'t have a character set up. ' . PHP_EOL . PHP_EOL .
+                    'Please use `new [shortcut] [Character name]` in these DMs to set on up.';            
+        }
+
+        return null;
+    }
 }

@@ -29,27 +29,6 @@ class MessageCache
     private $maxCacheAge;
 
     /**
-     * Sent messages to a webhook.
-     *
-     * @var array[]
-     */
-    private $webhookSubmissionCache;
-
-    /**
-     * When has the webhook cache been cleared last time?
-     *
-     * @var int
-     */
-    private $webhookCacheClearance;
-
-    /**
-     * Maximum age in seconds of an item in the webhook cache.
-     *
-     * @var int
-     */
-    private $webhookCacheAge;
-
-    /**
      * Cache object.
      *
      * @var MessageCache
@@ -64,10 +43,6 @@ class MessageCache
         $this->cachedData = array();
         $this->lastCacheClearance = time();
         $this->maxCacheAge = 600;
-
-        $this->webhookSubmissionCache = array();
-        $this->webhookCacheClearance = time();
-        $this->webhookCacheAge = 60;
     }
 
     /**
@@ -83,6 +58,25 @@ class MessageCache
         }
 
         return self::$instance;
+    }
+
+    /**
+     * Stores message results from the webhook.
+     *
+     * @param string $userId
+     * @param string $channelId
+     * @param Message[] $messages
+     * @return void
+     */
+    public static function submitToCache($userId, $channelId, $messages) {
+        $cache = self::getInstance();
+        $cache->cleanMainCache();
+
+        if (!array_key_exists($userId, $cache->cachedData)) {
+            $cache->cachedData[$userId] = array();
+        }
+
+        $cache->cachedData[$userId][$channelId] = $messages;
     }
 
     /**
@@ -102,11 +96,18 @@ class MessageCache
         $usersToDelete = array();
         foreach ($this->cachedData as $userId => &$userCache) {
             $channelsToDelete = array();
-            foreach($userCache as $channelId => &$message) {
-                if (is_null($message)) {
+            foreach($userCache as $channelId => &$messages) {
+                if (is_null($messages)) {
                     $channelsToDelete[] = $channelId;
                     break;
                 }
+
+                if (is_array($messages)) {
+                    $message = $messages[0];
+                } else {
+                    $message = $messages;
+                }
+
                 /** @var Message $message */
                 if ($currentTime - $message->createdTimestamp > $this->maxCacheAge) {
                     $channelsToDelete[] = $channelId;
@@ -130,130 +131,16 @@ class MessageCache
     }
 
     /**
-     * Cleans old entries from the webhook cache.
-     *
-     * @return void
-     */
-    private function cleanWebhookCache()
-    {
-        $currentTime = time();
-        if ($currentTime - $this->webhookCacheClearance < ($this->webhookCacheAge / 5)) {
-            return;
-        }
-
-        $this->webhookCacheClearance = $currentTime;
-
-        $idsToDelete = array();
-
-        foreach ($this->webhookSubmissionCache as $id => $cacheItem) {
-            if($currentTime - $cacheItem['time'] > $this->webhookCacheAge) {
-                $idsToDelete[] = $id;
-            }
-        }
-
-        if (count($idsToDelete) > 0) {
-            foreach ($idsToDelete as $id) {
-                unset($this->webhookSubmissionCache[$id]);
-            }
-
-            $this->webhookSubmissionCache = array_values($this->webhookSubmissionCache);
-        }
-    }
-
-    /**
-     * Stores a message in the webhook.
-     *
-     * @param string $userId
-     * @param string $channelId
-     * @param string $username
-     * @param string $message
-     * @return void
-     */
-    public static function submitToWebHook(string $userId, string $channelId, string $username, string $message)
-    {
-        $cache = self::getInstance();
-
-        $currentTime = time();
-
-        $cache->webhookSubmissionCache[] = array(
-            'time' => $currentTime,
-            'user_id' => $userId,
-            'channel_id' => $channelId,
-            'username' => $username,
-            'message' => trim($message)
-        );
-
-        $cache->cleanWebhookCache();
-    }
-
-    /**
-     * Tries to find a message by a user in the webhook cache.
-     * If found it will be added to the main cache.
-     *
-     * @param Message $message
-     * @return bool Do we have a cache hit?
-     */
-    public static function identifyBotMessage(Message $message) : bool
-    {
-        if (!$message->author->bot || ((int)($message->author->discriminator)) != 0) {
-            return false;
-        }
-
-        $cache = self::getInstance();
-
-        $webhookCacheHit = null;
-
-        $username = $message->author->username;
-        $content = $message->content;
-        $channelId = $message->channel->id;
-
-        foreach ($cache->webhookSubmissionCache as $cacheItem) {
-            if ($cacheItem['channel_id'] != $channelId) {
-                continue;
-            }
-            if ($cacheItem['username'] != $username) {
-                continue;
-            }
-
-            $percent = 0;
-            $matches = similar_text($content, $cacheItem['message'], $percent);
-
-            if ($percent > 90) {
-                $webhookCacheHit = $cacheItem;
-                break;
-            }
-        }
-
-        if (is_null($webhookCacheHit)) {
-            return false;
-        }
-
-        $userId = $cacheItem['user_id'];
-        if (!array_key_exists($userId, $cache->cachedData)) {
-            $cache->cachedData[$userId] = array();
-        }
-
-        if (!array_key_exists($channelId, $cache->cachedData[$userId])) {
-            $cache->cachedData[$userId][$channelId] = null;
-        }
-
-        $cache->cachedData[$userId][$channelId] = $message;
-
-        $cache->cleanMainCache();
-        return true;
-    }
-
-    /**
      * Determins the last sent message by a user.
      *
      * @param string $userId
      * @param string $channelId
-     * @return Message|null
+     * @return Message[]|null
      */
-    public static function findLastUserMessage(string $userId, string $channelId) : ?Message
+    public static function findLastUserMessages(string $userId, string $channelId) : ?array
     {
         $cache = self::getInstance();
-        $cache->cleanWebhookCache();
+        $cache->cleanMainCache();
 
         if (!array_key_exists($userId, $cache->cachedData)) {
             return null;
@@ -263,7 +150,17 @@ class MessageCache
             return null;
         }
 
-        return $cache->cachedData[$userId][$channelId];
+        $data = $cache->cachedData[$userId][$channelId];
+
+        if ($data instanceof Message) {
+            $data = [$data];
+        }
+
+        if (count ($data) == 0) {
+            return null;
+        }
+
+        return $data;
     }
 
     /**
@@ -276,7 +173,7 @@ class MessageCache
     public static function removeFromCache(string $userId, string $channelId)
     {
         $cache = self::getInstance();
-        $cache->cleanWebhookCache();
+        $cache->cleanMainCache();
 
         if (!array_key_exists($userId, $cache->cachedData)) {
             return;

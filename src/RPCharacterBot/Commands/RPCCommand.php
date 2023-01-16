@@ -14,6 +14,13 @@ abstract class RPCCommand extends CommandHandler
     protected static $COMMAND_NAMESPACE = 'RPCharacterBot\\Commands\\RPChannel';
 
     /**
+     * Message the webhook received upon return.
+     *
+     * @var Message
+     */
+    private $webhookReturnMessage;
+
+    /**
      * Resubmits a message including attachments as a new character.
      *
      * @param Message $message
@@ -26,11 +33,11 @@ abstract class RPCCommand extends CommandHandler
         if (!is_null($content)) {
             $files = array();
         } elseif ($message instanceof Message) {
-            $content = $message->content;
+            $content = $this->messageLine;
 
             $files = array();
     
-            if (is_array($message->attachments) && count($message->attachments) > 0) {                
+            if (is_array($message->attachments) && count($message->attachments) > 0 && !$this->ignoreAttachments) {                
                 foreach ($message->attachments as $attachment) {
                     if (substr($attachment->content_type, 0, 5) != 'image') {
                         continue;
@@ -74,20 +81,17 @@ abstract class RPCCommand extends CommandHandler
 
         $data['content'] = $content ?? 'Empty';
 
-        MessageCache::submitToWebHook($this->messageInfo->user->getId(), $this->messageInfo->message->channel->id,
-            $character->getCharacterName(), $content);
-
         $deferred = new Deferred();
         
-        $options = array();
+        $options = array('wait' => true);
         if ($this->messageInfo->isRPThread) {
             $options['thread_id'] = $this->messageInfo->thread->id;
-        }
+        }        
 
-        $this->messageInfo->webhook->execute($data, $options)->then(function () use ($message, $deferred) {
-            //$message->delete()->then(function () use($deferred) {
-                $deferred->resolve();
-            //});
+        $that = $this;
+        $this->messageInfo->webhook->execute($data, $options)->then(function (Message $returnMessage) use ($deferred, $that) {
+            $that->webhookReturnMessage = $returnMessage;
+            $deferred->resolve();            
         });
 
         return $deferred->promise();
@@ -104,5 +108,14 @@ abstract class RPCCommand extends CommandHandler
         } else {
             return is_null($this->messageInfo->thread);
         }
+    }
+
+    /**
+     * Receives the result of the webhook.
+     *
+     * @return Message|null
+     */
+    public function getWebhookReturnMessage() : ?Message {
+        return $this->webhookReturnMessage;
     }
 }

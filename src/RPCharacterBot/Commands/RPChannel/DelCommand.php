@@ -2,6 +2,7 @@
 
 namespace RPCharacterBot\Commands\RPChannel;
 
+use Discord\Parts\Channel\Message;
 use React\Promise\ExtendedPromiseInterface;
 use RPCharacterBot\Commands\RPCCommand;
 use RPCharacterBot\Common\MessageCache;
@@ -15,8 +16,11 @@ class DelCommand extends RPCCommand
      */
     protected function handleCommandInternal(): ?ExtendedPromiseInterface
     {        
-        if (!is_null($this->messageInfo->lastSubmittedMessage)) {
-            $this->messageInfo->lastSubmittedMessage->delete()->done();
+        if (!is_null($this->messageInfo->lastSubmittedMessages)) {
+            foreach ($this->messageInfo->lastSubmittedMessages as $msg) {
+                /** @var Message $msg */
+                $msg->delete()->done();
+            }            
 
             MessageCache::removeFromCache($this->messageInfo->user->getId(), $this->messageInfo->channel->getId());
         }

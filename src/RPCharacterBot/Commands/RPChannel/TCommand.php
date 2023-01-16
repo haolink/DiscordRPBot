@@ -33,4 +33,28 @@ class TCommand extends RPCCommand implements StackableCommand
             return null;
         }        
     }
+
+    /**
+     * Verifies parameters for multi message mode.
+     *
+     * @param string $messageBody
+     * @return void
+     */
+    public function queryCallingError(string $messageBody) : ?string
+    {
+        $words = $this->getMessageWords($messageBody);
+
+        if(count($words) < 1) {
+            return 'Usage: ..sw [shortcut]';
+        }
+
+        $shortCut = strtolower($words[0]);                
+        $existingCharacter = $this->getCharacterByShortcut($shortCut);
+
+        if (is_null($existingCharacter)) {
+            return 'A character with the shortcut ' . $shortCut . ' doesn\'t exist.';
+        }
+
+        return null;
+    }
 }

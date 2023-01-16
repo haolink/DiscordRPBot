@@ -16,6 +16,7 @@ use Ratchet\Server\IoServer;
 use Ratchet\WebSocket\WsServer;
 use React\MySQL\Factory as MysqlFactory;
 use React\MySQL\Io\LazyConnection;
+use React\Promise\Deferred;
 use RPCharacterBot\Commands\DMCommand;
 use RPCharacterBot\Commands\GuildCommand;
 use RPCharacterBot\Commands\RPCCommand;
@@ -293,12 +294,7 @@ class Bot
         if ($message->channel->type != DiscordChannel::TYPE_DM) {
             if (!is_null($message->author) && $message->author->bot) { //is by a bot
                 return;
-            }
-    
-            if ($message->author == null) {
-                MessageCache::identifyBotMessage($message);
-                return;
-            }
+            }    
         }        
         
         $this->lastMessage = $message;
@@ -391,46 +387,50 @@ class Bot
     {
         $container = MessageContainer::parseMessage($info);
 
-        $messageText = $info->message->content ?? '';
+        if ($container->isValid()) {
+            if ($onlyCheckAvailability) {
+                return true;
+            }            
+        } else {
+            $errors = implode(PHP_EOL . PHP_EOL, $container->getErrors());
 
-        $words = explode(' ', $messageText);
-        if (count($words) == 0) {
+            $info->message->author->sendMessage($errors)->then(function() use ($info) {
+                if (!$info->preventDeletion) {
+                    $info->message->delete()->done(); 
+                }
+            });
+
             return false;
         }
 
-        $firstWord = $words[0];
-        $commandName = BotHelper::extractCommandName($firstWord, $info->quickPrefix);
+        $defer = $container->submit();
 
-        if (is_null($commandName)) {
+        if (is_null($defer)) {
+            if (!$info->preventDeletion) {
+                $info->message->delete()->done();
+            }
+
             return false;
         }        
 
-        $command = RPCCommand::searchCommand($commandName, $info);
-        if (!is_null($command)) {
-            if ($onlyCheckAvailability) {
-                return true;
+        $defer->then(function() use ($info) {
+            if (!$info->preventDeletion) {
+                $info->message->delete()->done();
             }
+        });
 
-            $command->handleCommand()->then(function() use ($info) {
-                if (!$info->preventDeletion) {
-                    $info->message->delete()->done();
-                }
-            });            
-
-            return true;
-        }
-        return false;
+        return true;        
     }
 
     /**
      * Has the message sent been a ping to me?
      *
      * @param string $word
-     * @param Guild $guild
+     * @param DiscordGuild $guild
      * @return boolean
      */
     private function isAPingAtMe(string $word, DiscordGuild $guild) : bool {
-        if(mb_strlen($word) < 22) {
+        if(mb_strlen($word) < 20) {
             return false;
         }
 
@@ -456,14 +456,24 @@ class Bot
             return false;
         }
 
-        $myIds = array($this->client->user->id);
+        $myIds = array($this->client->user->id);        
 
-        foreach ($guild->me->roles->all() as $role) {
-            /** @var Role $role */
-            if ($role->mentionable || $role->managed) {
-                $myIds[] = $role->id;
+        $me = null;
+        foreach ($guild->members as $member) {
+            if ($member->id == $this->client->id) {
+                $me = $member;
+                break;
             }
         }
+
+        if (!is_null($me)) {
+            foreach ($me->roles as $role) {
+                /** @var Role $role */
+                if ($role->mentionable || $role->managed) {
+                    $myIds[] = $role->id;
+                }
+            }
+        }        
 
         if (in_array($pingedId, $myIds)) {            
             return true;

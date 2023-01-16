@@ -16,8 +16,9 @@ class LastIdCommand extends RPCCommand
     {        
         $txt = 'No known former message.';
 
-        if (!is_null($this->messageInfo->lastSubmittedMessage)) {
-            $txt = 'ID: ' . $this->messageInfo->lastSubmittedMessage->id;
+        if (!is_null($this->messageInfo->lastSubmittedMessages)) {
+            $msg = $this->messageInfo->lastSubmittedMessages[count($this->messageInfo->_lastSubmittedMessages) - 1];
+            $txt = 'ID: ' . $msg->id;
         }
 
         return $this->replyDM($txt);

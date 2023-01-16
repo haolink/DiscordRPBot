@@ -26,7 +26,7 @@ use RPCharacterBot\Model\ThreadUser;
  * Descriptor for a final RP Bot message to be parsed.
  * 
  * @property Message $message Original Discord message object.
- * @property Message|null $lastSubmittedMessage Last submitted message by this user.
+ * @property Message[]|null $lastSubmittedMessages Last submitted messages by this user in this channel.
  * @property Guild $guild Discord RP guild data for this message.
  * @property Channel|null $channel RP channel info.
  * @property Thread|null $thread Discord thread.
@@ -54,11 +54,11 @@ class MessageInfo
     protected $_message;
 
     /**
-     * Last submitted user message.
+     * Last submitted user messages.
      *
      * @var Message
      */    
-    protected $_lastSubmittedMessage;
+    protected $_lastSubmittedMessages;
 
     /**
      * RP Guild data.
@@ -390,7 +390,7 @@ class MessageInfo
                 $that->_user = $user;
 
                 $that->_oocSequence = $that->_user->getOocPrefix() ?? $that->_bot->getConfig('oocPrefix', '//');
-                $that->fetchCachedMessage($deferred);
+                $that->fetchCachedMessages($deferred);
             }
         );
     }
@@ -401,18 +401,18 @@ class MessageInfo
      * @param Deferred $deferred
      * @return void
      */
-    private function fetchCachedMessage(Deferred $deferred)
+    private function fetchCachedMessages(Deferred $deferred)
     {
         if (!is_null($this->_user) && !is_null($this->_channel)) {
             if ($this->isRPThread) {
-                $this->_lastSubmittedMessage = 
-                    MessageCache::findLastUserMessage($this->_user->getId(), $this->_thread->id);
+                $this->_lastSubmittedMessages = 
+                    MessageCache::findLastUserMessages($this->_user->getId(), $this->_thread->id);
             } else {
-                $this->_lastSubmittedMessage = 
-                    MessageCache::findLastUserMessage($this->_user->getId(), $this->_channel->getId());
+                $this->_lastSubmittedMessages = 
+                    MessageCache::findLastUserMessages($this->_user->getId(), $this->_channel->getId());
             }            
         } else {
-            $this->_lastSubmittedMessage = null;
+            $this->_lastSubmittedMessages = null;
         }
 
         $this->fetchCharacterData($deferred);
